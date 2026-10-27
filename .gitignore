@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+# banco da demonstração: é recriado a partir de data/alunos_ficticios.json
+data/escola.db
