@@ -26,6 +26,11 @@
   .baixo { color:var(--baixo); } .medio { color:var(--medio); } .alto { color:var(--alto); }
   ul { margin:6px 0; padding-left:20px; } .suave { color:var(--suave); font-size:14px; }
   .erro { color:var(--alto); font-size:14px; }
+  .selo { display:inline-block; padding:2px 10px; border-radius:12px; font-size:13px; font-weight:600; }
+  .selo.ativa { background:#e6f4ea; color:var(--baixo); } .selo.inativa { background:#fdecea; color:var(--alto); }
+  .legenda { display:flex; gap:16px; font-size:13px; color:var(--suave); margin:8px 0 0; }
+  .legenda i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
+  :root { --aprov:#1f5fbf; --freq:#0f8a7e; }
   pre { white-space:pre-wrap; font:inherit; }
   @media print { header, nav, .nao-imprime { display:none; } .cartao { border:0; } }
 </style>
@@ -49,7 +54,7 @@
       <select id="turma"></select>
       <label for="aluno">Aluno (nº de cadastro)</label>
       <select id="aluno"></select>
-      <p id="resumo" class="suave"></p>
+      <div id="painel-aluno"></div>
       <label for="acompanhamento">O que você tem observado</label>
       <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
       <label for="senha">Sua senha (confirma o envio)</label>
@@ -112,13 +117,56 @@ function mostrarAlunosDaTurma() {
 }
 
 function mostrarResumo() {
+  // O professor vê a matrícula e o rendimento do semestre. A previsão fica com a coordenação.
   const a = alunos.find((x) => x.id === $("aluno").value);
   if (!a) return;
-  const d = a.dados;
-  $("resumo").textContent =
-    `${d.idade} anos · 1º sem: ${d.disciplinas_1sem_aprovadas}/${d.disciplinas_1sem_inscritas} aprovadas · ` +
-    `2º sem: ${d.disciplinas_2sem_aprovadas}/${d.disciplinas_2sem_inscritas} · ` +
-    `mensalidade ${d.mensalidade_em_dia ? "em dia" : "atrasada"}`;
+  const m = a.matricula;
+  $("painel-aluno").innerHTML = `
+    <p>Matrícula: <span class="selo ${m.situacao}">${m.situacao}</span>
+      ${m.motivo ? `<span class="suave"> · ${m.motivo}</span>` : ""}
+      <span class="suave"> · ${a.dados.idade} anos na matrícula</span></p>
+    ${grafico(a)}`;
+}
+
+function grafico(a) {
+  // Barras agrupadas por semestre, numa escala só (0 a 100%): aprovação e frequência.
+  const d = a.dados, f = a.frequencia;
+  const pct = (aprov, insc) => (insc ? Math.round((aprov / insc) * 100) : 0);
+  // A base UCI usa notas de 0 a 20 (Portugal); a tela mostra na escala brasileira, de 0 a 10.
+  const nota = (v) => (v / 2).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const semestres = [
+    { nome: "1º semestre", aprov: pct(d.disciplinas_1sem_aprovadas, d.disciplinas_1sem_inscritas),
+      freq: f.sem1, media: d.media_1sem, texto: `${d.disciplinas_1sem_aprovadas}/${d.disciplinas_1sem_inscritas}` },
+    { nome: "2º semestre", aprov: pct(d.disciplinas_2sem_aprovadas, d.disciplinas_2sem_inscritas),
+      freq: f.sem2, media: d.media_2sem, texto: `${d.disciplinas_2sem_aprovadas}/${d.disciplinas_2sem_inscritas}` },
+  ];
+  const L = 480, A = 210, base = 170, topo = 20, alt = base - topo;
+  const y = (v) => base - (v / 100) * alt;
+  let svg = "";
+  for (const v of [0, 50, 100]) {
+    svg += `<line x1="40" x2="${L - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="34" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}%</text>`;
+  }
+  semestres.forEach((s, i) => {
+    const x0 = 80 + i * 200;
+    const barras = [
+      { v: s.aprov, cor: "var(--aprov)", dica: `Aprovação: ${s.texto} disciplinas (${s.aprov}%)` },
+      { v: s.freq, cor: "var(--freq)", dica: `Frequência: ${s.freq}%` },
+    ];
+    barras.forEach((b, j) => {
+      const x = x0 + j * 52;
+      svg += `<g><title>${s.nome} · ${b.dica}</title>
+        <rect x="${x}" y="${y(b.v)}" width="44" height="${base - y(b.v)}" rx="4" fill="${b.cor}"/>
+        <text x="${x + 22}" y="${y(b.v) - 5}" text-anchor="middle" font-size="12" fill="#1f2328">${b.v}%</text></g>`;
+    });
+    svg += `<text x="${x0 + 48}" y="${base + 18}" text-anchor="middle" font-size="12" fill="#1f2328">${s.nome}</text>
+      <text x="${x0 + 48}" y="${base + 34}" text-anchor="middle" font-size="11" fill="#5f6368">média ${nota(s.media)} de 10</text>`;
+  });
+  const fonte = f.fonte === "demo" ? "frequência de demonstração" : "frequência do diário de classe";
+  return `<svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:480px" role="img"
+      aria-label="Aprovação e frequência por semestre de ${a.nome}">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--aprov)"></i>Aprovação nas disciplinas</span>
+      <span><i style="background:var(--freq)"></i>Frequência</span><span>· ${fonte}</span></div>`;
 }
 
 function cartaoPredicao(p) {
