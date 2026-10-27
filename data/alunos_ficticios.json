@@ -4,6 +4,15 @@
     "nome": "Ana Beatriz Rocha",
     "turma": "Turma B",
     "email_responsavel": "responsavel.a0001@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 97,
+      "sem2": 96,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 21,
       "nota_admissao": 153.0,
@@ -26,6 +35,15 @@
     "nome": "Caio Henrique Lima",
     "turma": "Turma A",
     "email_responsavel": "responsavel.a0002@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 95,
+      "sem2": 93,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 18,
       "nota_admissao": 131.0,
@@ -48,6 +66,15 @@
     "nome": "Débora Martins",
     "turma": "Turma B",
     "email_responsavel": "responsavel.a0003@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 94,
+      "sem2": 90,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 20,
       "nota_admissao": 135.8,
@@ -70,6 +97,15 @@
     "nome": "Felipe Duarte",
     "turma": "Turma A",
     "email_responsavel": "responsavel.a0004@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 92,
+      "sem2": 88,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 23,
       "nota_admissao": 121.5,
@@ -92,6 +128,15 @@
     "nome": "Gabriela Nunes",
     "turma": "Turma B",
     "email_responsavel": "responsavel.a0005@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 90,
+      "sem2": 84,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 39,
       "nota_admissao": 117.5,
@@ -114,6 +159,15 @@
     "nome": "Igor Santana",
     "turma": "Turma A",
     "email_responsavel": "responsavel.a0006@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 86,
+      "sem2": 78,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 21,
       "nota_admissao": 118.8,
@@ -136,6 +190,15 @@
     "nome": "Júlia Ferraz",
     "turma": "Turma B",
     "email_responsavel": "responsavel.a0007@example.com",
+    "matricula": {
+      "situacao": "ativa",
+      "motivo": null
+    },
+    "frequencia": {
+      "sem1": 80,
+      "sem2": 66,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 18,
       "nota_admissao": 119.0,
@@ -158,6 +221,15 @@
     "nome": "Lucas Pereira",
     "turma": "Turma A",
     "email_responsavel": "responsavel.a0008@example.com",
+    "matricula": {
+      "situacao": "inativa",
+      "motivo": "Pendência de documentação na secretaria."
+    },
+    "frequencia": {
+      "sem1": 74,
+      "sem2": 52,
+      "fonte": "demo"
+    },
     "dados": {
       "idade": 70,
       "nota_admissao": 116.4,

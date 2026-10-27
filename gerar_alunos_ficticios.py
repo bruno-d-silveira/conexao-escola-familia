@@ -3,6 +3,10 @@
 Os dados acadêmicos vêm de linhas reais e anônimas da base UCI (que não tem nomes).
 Os nomes, turmas e e-mails são INVENTADOS. Nenhum dado pessoal real entra no projeto.
 
+Matrícula e frequência também são inventadas: a base UCI não tem esses campos.
+Numa escola, os dois vêm do sistema de secretaria: a situação da matrícula do cadastro
+e a frequência do diário de classe (a chamada). Por isso cada aluno leva "fonte": "demo".
+
 Como rodar:  python gerar_alunos_ficticios.py   (depois de python treinar.py)
 """
 import json
@@ -16,6 +20,8 @@ from treinar import BINARIAS, COLUNAS, DADOS
 RAIZ = Path(__file__).resolve().parent
 NOMES = ["Ana Beatriz Rocha", "Caio Henrique Lima", "Débora Martins", "Felipe Duarte",
          "Gabriela Nunes", "Igor Santana", "Júlia Ferraz", "Lucas Pereira"]
+# Frequência (%) por semestre, do menor para o maior risco: quem falta mais, arrisca mais.
+FREQUENCIA = [(97, 96), (95, 93), (94, 90), (92, 88), (90, 84), (86, 78), (80, 66), (74, 52)]
 
 
 def main():
@@ -41,6 +47,9 @@ def main():
             "nome": NOMES[n - 1],
             "turma": f"Turma {'AB'[n % 2]}",
             "email_responsavel": f"responsavel.a{n:04d}@example.com",
+            "matricula": ({"situacao": "inativa", "motivo": "Pendência de documentação na secretaria."}
+                          if n == 8 else {"situacao": "ativa", "motivo": None}),
+            "frequencia": {"sem1": FREQUENCIA[n - 1][0], "sem2": FREQUENCIA[n - 1][1], "fonte": "demo"},
             "dados": dados,
         })
     destino = RAIZ / "data" / "alunos_ficticios.json"
