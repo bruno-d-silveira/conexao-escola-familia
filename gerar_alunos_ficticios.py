@@ -7,6 +7,10 @@ Matrícula e frequência também são inventadas: a base UCI não tem esses camp
 Numa escola, os dois vêm do sistema de secretaria: a situação da matrícula do cadastro
 e a frequência do diário de classe (a chamada). Por isso cada aluno leva "fonte": "demo".
 
+Faixa etária: a base é de ensino superior e vai de 17 a 70 anos. A demonstração usa só
+estudantes de 17 a 20 anos, a idade típica de quem acaba de sair da escola; os mais velhos
+são outliers para o público do projeto e deixariam a demo implausível.
+
 Como rodar:  python gerar_alunos_ficticios.py   (depois de python treinar.py)
 """
 import json
@@ -18,6 +22,7 @@ import pandas as pd
 from treinar import BINARIAS, COLUNAS, DADOS
 
 RAIZ = Path(__file__).resolve().parent
+IDADE_MIN, IDADE_MAX = 17, 20
 NOMES = ["Ana Beatriz Rocha", "Caio Henrique Lima", "Débora Martins", "Felipe Duarte",
          "Gabriela Nunes", "Igor Santana", "Júlia Ferraz", "Lucas Pereira"]
 # Frequência (%) por semestre, do menor para o maior risco: quem falta mais, arrisca mais.
@@ -27,9 +32,10 @@ FREQUENCIA = [(97, 96), (95, 93), (94, 90), (92, 88), (90, 84), (86, 78), (80, 6
 def main():
     bruto = pd.read_csv(DADOS, sep=";")
     x = bruto[list(COLUNAS)].rename(columns=COLUNAS)
+    x = x[x["idade"].between(IDADE_MIN, IDADE_MAX)]
     risco = joblib.load(RAIZ / "models" / "modelo_evasao.joblib").predict_proba(x)[:, 1]
     # Oito estudantes espalhados do risco mais baixo ao mais alto, para a demonstração.
-    ordem = pd.Series(risco).sort_values().index
+    ordem = pd.Series(risco, index=x.index).sort_values().index
     escolhidos = [ordem[int(i * (len(ordem) - 1) / 7)] for i in range(8)]
     alunos = []
     for n, idx in enumerate(escolhidos, start=1):
