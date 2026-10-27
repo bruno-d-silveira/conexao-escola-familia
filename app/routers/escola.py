@@ -2,7 +2,8 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
-from app.schemas import Aluno, Aprovacao, DadosEstudante, Documento, NovoRegistro, Professor, Registro
+from app.schemas import (Aluno, Aprovacao, DadosEstudante, Documento, NovoRegistro, Professor, Registro,
+                         RegistroEnviado)
 
 router = APIRouter(prefix="/v1", tags=["escola"])
 
@@ -17,7 +18,7 @@ def listar_professores(request: Request):
     return request.app.state.escola.professores()
 
 
-@router.post("/registros", response_model=Registro, status_code=201)
+@router.post("/registros", response_model=RegistroEnviado, status_code=201)
 def registrar(novo: NovoRegistro, request: Request):
     """O professor confirma a senha e escreve o acompanhamento; a previsão é feita e tudo vai para o log."""
     professor = request.app.state.escola.autenticar(novo.professor_id, novo.senha)
@@ -31,8 +32,10 @@ def registrar(novo: NovoRegistro, request: Request):
     dados = DadosEstudante(**aluno["dados"])
     checar_coerencia(dados)
     predicao = request.app.state.modelo.prever(dados)
-    return request.app.state.escola.novo_registro(
+    registro = request.app.state.escola.novo_registro(
         novo.aluno_id, professor["nome"], novo.acompanhamento, predicao.model_dump())
+    return RegistroEnviado(id=registro["id"], status=registro["status"],
+                           mensagem="Relatório enviado à coordenação.")
 
 
 @router.get("/registros", response_model=list[Registro])

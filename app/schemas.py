@@ -99,6 +99,13 @@ class Registro(BaseModel):
     aprovado_por: str | None = None
 
 
+class RegistroEnviado(BaseModel):
+    """O que o professor recebe: só a confirmação. A previsão fica com a coordenação."""
+    id: int
+    status: Literal["aguardando_coordenacao"]
+    mensagem: str
+
+
 class Aprovacao(BaseModel):
     coordenador: str = Field(..., min_length=2, max_length=80)
 

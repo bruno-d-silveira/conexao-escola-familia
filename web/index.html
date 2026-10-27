@@ -54,7 +54,7 @@
       <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
       <label for="senha">Sua senha (confirma o envio)</label>
       <input id="senha" type="password" autocomplete="current-password">
-      <button class="acao" onclick="registrar()">Gerar previsão e registrar</button>
+      <button class="acao" onclick="registrar()">Enviar relatório</button>
       <p id="erro-professor" class="erro"></p>
     </div>
     <div id="resultado"></div>
@@ -144,8 +144,8 @@ async function registrar() {
       aluno_id: $("aluno").value, professor_id: $("professor-id").value, senha: $("senha").value,
       acompanhamento: $("acompanhamento").value }) });
     $("senha").value = "";
-    $("resultado").innerHTML = `<div class="cartao">${cartaoPredicao(reg.predicao)}
-      <p class="suave">Registro nº ${reg.id} enviado à coordenação em ${reg.criado_em}.</p></div>`;
+    $("acompanhamento").value = "";
+    $("resultado").innerHTML = `<div class="cartao"><p>${reg.mensagem} Registro nº ${reg.id}.</p></div>`;
   } catch (e) { $("erro-professor").textContent = e.message; }
 }
 

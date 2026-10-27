@@ -41,7 +41,8 @@ def test_fluxo_professor_coordenacao(cliente):
     r = cliente.post("/v1/registros", json={"aluno_id": "A0008", "professor_id": "P001", "senha": SENHA_DEMO,
                                            "acompanhamento": "Faltou às duas últimas provas."})
     assert r.status_code == 201
-    reg = r.json()
+    assert "predicao" not in r.json()  # o professor não recebe a previsão
+    reg = cliente.get("/v1/registros").json()[0]
     assert reg["status"] == "aguardando_coordenacao"
     assert reg["professor"] == "Prof.ª Helena Costa"
     assert cliente.get(f"/v1/registros/{reg['id']}/documento").status_code == 400
