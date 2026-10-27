@@ -1,4 +1,5 @@
 """Contratos de dados da API (Pydantic): o que entra e o que sai."""
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -50,3 +51,46 @@ class Saude(BaseModel):
     modelo_carregado: bool
     modelo: str | None
 
+
+class Aluno(BaseModel):
+    id: str
+    nome: str
+    turma: str
+    email_responsavel: str
+    dados: DadosEstudante
+
+
+class Professor(BaseModel):
+    id: str
+    nome: str
+
+
+class NovoRegistro(BaseModel):
+    aluno_id: str = Field(..., pattern=r"^A\d{4}$", examples=["A0001"])
+    professor_id: str = Field(..., pattern=r"^P\d{3}$", examples=["P001"])
+    senha: str = Field(..., min_length=4, max_length=64, description="Senha do professor (não fica gravada)")
+    acompanhamento: str = Field(..., min_length=10, max_length=1000,
+                                description="O que o professor tem observado (não entra no modelo)")
+
+
+class Registro(BaseModel):
+    id: int
+    aluno_id: str
+    professor: str
+    acompanhamento: str
+    predicao: Predicao
+    status: Literal["aguardando_coordenacao", "aprovado"]
+    criado_em: datetime
+    aprovado_em: datetime | None = None
+    aprovado_por: str | None = None
+
+
+class Aprovacao(BaseModel):
+    coordenador: str = Field(..., min_length=2, max_length=80)
+
+
+class Documento(BaseModel):
+    registro_id: int
+    para: str
+    assunto: str
+    texto: str
