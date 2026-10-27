@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.escola import Escola
 from app.routers import escola, predicao
@@ -39,6 +40,12 @@ app = FastAPI(
 )
 app.include_router(predicao.router)
 app.include_router(escola.router)
+app.mount("/web", StaticFiles(directory=RAIZ / "web", html=True), name="web")
+
+
+@app.get("/", include_in_schema=False)
+def inicio():
+    return RedirectResponse("/web/")
 
 
 @app.exception_handler(Exception)
