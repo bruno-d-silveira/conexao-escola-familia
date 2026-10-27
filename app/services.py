@@ -34,7 +34,7 @@ class ServicoModelo:
             risco_evasao=round(risco, 4),
             nivel=regras.nivel(risco),
             fatores_do_dado=fatores,
-            pontos_cegos=regras.PONTOS_CEGOS,
+            limitacoes_do_modelo=regras.LIMITACOES,
             perguntas_para_conversa=regras.perguntas([f.fator for f in fatores]),
         )
 

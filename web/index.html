@@ -131,8 +131,8 @@ function cartaoPredicao(p) {
     <div class="barra"><div style="width:${pct}%;background:${cor}"></div></div>
     <p><strong>O que o dado diz</strong></p>
     <ul>${p.fatores_do_dado.map((f) => `<li>${f.descricao}</li>`).join("") || "<li>Nenhum fator puxando o risco para cima.</li>"}</ul>
-    <p><strong>O que o dado não vê</strong></p>
-    <ul class="suave">${p.pontos_cegos.map((c) => `<li>${c}</li>`).join("")}</ul>
+    <p><strong>Limitações do modelo</strong></p>
+    <ul class="suave">${p.limitacoes_do_modelo.map((c) => `<li>${c}</li>`).join("")}</ul>
     <p><strong>Perguntas para a conversa</strong></p>
     <ul>${p.perguntas_para_conversa.map((q) => `<li>${q}</li>`).join("")}</ul>`;
 }

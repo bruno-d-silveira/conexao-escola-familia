@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Conexão Escola-Família: risco de evasão",
-    description="Prevê o risco de evasão de um estudante e diz, com honestidade, o que o dado não vê.",
+    description="Prevê o risco de evasão de um estudante com os fatores que mais pesaram e as limitações do modelo.",
     version="0.1.0",
     lifespan=lifespan,
 )

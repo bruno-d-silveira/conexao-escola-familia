@@ -21,7 +21,7 @@ def test_predict_200_devolve_risco_e_perguntas():
     corpo = resposta.json()
     assert 0 <= corpo["risco_evasao"] <= 1
     assert corpo["nivel"] in {"baixo", "medio", "alto"}
-    assert corpo["pontos_cegos"]
+    assert corpo["limitacoes_do_modelo"]
     assert corpo["perguntas_para_conversa"]
 
 

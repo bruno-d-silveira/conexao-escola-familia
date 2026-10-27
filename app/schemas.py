@@ -42,7 +42,7 @@ class Predicao(BaseModel):
     risco_evasao: float = Field(..., ge=0, le=1, description="Probabilidade estimada de evadir")
     nivel: Literal["baixo", "medio", "alto"]
     fatores_do_dado: list[Fator]
-    pontos_cegos: list[str] = Field(..., description="O que o modelo NÃO enxerga")
+    limitacoes_do_modelo: list[str]
     perguntas_para_conversa: list[str]
 
 

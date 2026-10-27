@@ -1,19 +1,18 @@
-"""O que o modelo não enxerga, e as perguntas que ajudam a enxergar.
+"""Limitações do modelo, níveis de risco e perguntas para a conversa com a família.
 
-Regras escritas à mão, sem IA: são transparentes e qualquer pessoa da escola pode lê-las.
+Regras escritas à mão, sem IA: são transparentes e auditáveis.
 """
 
-PONTOS_CEGOS = [
-    "Sono: o modelo não sabe se o estudante dorme bem.",
-    "Luz do sol e hábitos: não sabe se ele sai de casa de dia, se se alimenta, se se mexe.",
-    "Casa e escola: não sabe o que acontece entre a família e a escola.",
-    "Pertencimento: não sabe se ele tem com quem contar na turma.",
-    "O texto do professor: o acompanhamento escrito não entra no cálculo, só no registro.",
+LIMITACOES = [
+    "Base de treino: ensino superior em Portugal (UCI 697), não educação básica no Brasil.",
+    "Não usa frequência: a presença vem do diário de classe e é mostrada à parte.",
+    "Não lê o relatório do professor: o texto fica no registro, fora do cálculo.",
+    "Mostra associação, não causa: o risco é um ponto de partida para a conversa, não um diagnóstico.",
 ]
 
 PERGUNTAS_BASE = [
-    "Como ele tem dormido?",
-    "Com quem ele conversa aqui na escola?",
+    "Como tem sido a rotina de estudos em casa?",
+    "Há algo na escola que esteja dificultando a presença dele?",
 ]
 
 # fator do modelo -> pergunta humana

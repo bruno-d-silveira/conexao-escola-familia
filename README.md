@@ -24,7 +24,7 @@ app/
   main.py          lifespan (carrega o .joblib uma vez) e handler de 500
   services.py      inferência e fatores (peso × valor da regressão logística)
   schemas.py       contratos Pydantic com Field (faixas → 422)
-  regras.py        pontos cegos, níveis e perguntas, escritos à mão
+  regras.py        limitações, níveis e perguntas, escritos à mão
   routers/
     predicao.py    /health e /v1/predict
 tests/test_api.py  200, 400, 422 e 500
@@ -47,7 +47,7 @@ Documentação interativa: http://127.0.0.1:8000/docs
 | Método | Rota | Resposta |
 |---|---|---|
 | GET | `/health` | status e se o modelo está carregado |
-| POST | `/v1/predict` | risco, nível, fatores, pontos cegos, perguntas |
+| POST | `/v1/predict` | risco, nível, fatores, limitações, perguntas |
 
 | Código | Quando |
 |---|---|
