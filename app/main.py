@@ -10,7 +10,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.routers import predicao
+from app.escola import Escola
+from app.routers import escola, predicao
 from app.services import ServicoModelo
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -25,6 +26,8 @@ async def lifespan(app: FastAPI):
         app.state.modelo.carregar()
     except FileNotFoundError:
         log.error("models/modelo_evasao.joblib não existe: rode `python treinar.py`.")
+    app.state.escola = Escola(RAIZ / "data" / "escola.db")
+    app.state.escola.preparar()
     yield
 
 
@@ -35,6 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(predicao.router)
+app.include_router(escola.router)
 
 
 @app.exception_handler(Exception)
