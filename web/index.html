@@ -31,6 +31,14 @@
   .legenda { display:flex; gap:16px; font-size:13px; color:var(--suave); margin:8px 0 0; }
   .legenda i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
   :root { --aprov:#1f5fbf; --freq:#0f8a7e; }
+  .kpis { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:12px 0; }
+  .kpi { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:12px 16px; }
+  .kpi b { display:block; font-size:28px; } .kpi span { color:var(--suave); font-size:13px; }
+  .linha { display:grid; grid-template-columns:70px 1fr auto; gap:12px; align-items:center;
+           padding:10px 0; border-top:1px solid var(--linha); cursor:pointer; }
+  .linha:first-child { border-top:0; } .linha:hover { background:#f4f6fb; }
+  .nivel { text-align:center; padding:2px 0; border-radius:12px; font-size:12px; font-weight:600; color:#fff; }
+  .nivel.baixo { background:var(--baixo); } .nivel.medio { background:var(--medio); } .nivel.alto { background:var(--alto); }
   pre { white-space:pre-wrap; font:inherit; }
   @media print { header, nav, .nao-imprime { display:none; } .cartao { border:0; } }
 </style>
@@ -71,7 +79,10 @@
       <input id="coord-nome" placeholder="Nome de quem aprova">
       <p id="erro-coord" class="erro"></p>
     </div>
-    <div id="fila"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
+      <div id="fila"></div></div>
+    <div id="detalhe"></div>
     <div id="documento"></div>
   </section>
 </main>
@@ -198,13 +209,41 @@ async function registrar() {
 }
 
 async function carregarFila() {
-  const fila = await api("/v1/registros?status=aguardando_coordenacao");
+  // Prioridade: o risco do modelo, do maior para o menor. Quem decide o que fazer é a coordenação.
+  const todos = await api("/v1/registros");
+  const fila = todos.filter((r) => r.status === "aguardando_coordenacao")
+    .sort((x, y) => y.predicao.risco_evasao - x.predicao.risco_evasao);
+  $("kpis").innerHTML = `
+    <div class="kpi"><b>${fila.length}</b><span>pendências</span></div>
+    <div class="kpi"><b class="alto">${fila.filter((r) => r.predicao.nivel === "alto").length}</b><span>prioridade alta</span></div>
+    <div class="kpi"><b>${todos.length - fila.length}</b><span>encaminhados</span></div>`;
   $("fila").innerHTML = fila.length ? fila.map((r) => {
-    const a = alunos.find((x) => x.id === r.aluno_id) || { nome: r.aluno_id };
-    return `<div class="cartao"><p><strong>${a.nome}</strong> · registro nº ${r.id} · ${r.professor} · ${r.criado_em}</p>
-      <p class="suave">“${r.acompanhamento}”</p>${cartaoPredicao(r.predicao)}
-      <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button></div>`;
-  }).join("") : `<div class="cartao suave">Nenhum registro aguardando aprovação.</div>`;
+    const a = alunos.find((x) => x.id === r.aluno_id) || { nome: r.aluno_id, turma: "" };
+    return `<div class="linha" onclick="abrir(${r.id})">
+      <span class="nivel ${r.predicao.nivel}">${r.predicao.nivel}</span>
+      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span><br>
+        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span></span>
+      <span class="suave">abrir ›</span></div>`;
+  }).join("") : `<p class="suave">Nenhum relatório aguardando a coordenação.</p>`;
+  $("detalhe").innerHTML = "";
+}
+
+async function abrir(id) {
+  // O relatório do professor puxa o resto: matrícula, rendimento e a previsão do modelo.
+  const r = (await api("/v1/registros")).find((x) => x.id === id);
+  const a = alunos.find((x) => x.id === r.aluno_id);
+  const m = a.matricula;
+  $("documento").innerHTML = "";
+  $("detalhe").innerHTML = `<div class="cartao">
+    <p><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma} · ${a.dados.idade} anos</span></p>
+    <p>Matrícula: <span class="selo ${m.situacao}">${m.situacao}</span>
+      ${m.motivo ? `<span class="suave"> · ${m.motivo}</span>` : ""}</p>
+    ${grafico(a)}
+    <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
+    <p>“${r.acompanhamento}”</p>
+    ${cartaoPredicao(r.predicao)}
+    <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button></div>`;
+  $("detalhe").scrollIntoView({ behavior: "smooth" });
 }
 
 async function aprovar(id) {
