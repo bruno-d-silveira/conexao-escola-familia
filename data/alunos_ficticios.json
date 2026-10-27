@@ -1,0 +1,178 @@
+[
+  {
+    "id": "A0001",
+    "nome": "Ana Beatriz Rocha",
+    "turma": "Turma B",
+    "email_responsavel": "responsavel.a0001@example.com",
+    "dados": {
+      "idade": 21,
+      "nota_admissao": 153.0,
+      "disciplinas_1sem_inscritas": 17,
+      "disciplinas_1sem_aprovadas": 17,
+      "media_1sem": 13.39,
+      "disciplinas_2sem_inscritas": 17,
+      "disciplinas_2sem_aprovadas": 17,
+      "media_2sem": 14.89,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": true,
+      "mora_longe_de_casa": true,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0002",
+    "nome": "Caio Henrique Lima",
+    "turma": "Turma A",
+    "email_responsavel": "responsavel.a0002@example.com",
+    "dados": {
+      "idade": 18,
+      "nota_admissao": 131.0,
+      "disciplinas_1sem_inscritas": 6,
+      "disciplinas_1sem_aprovadas": 5,
+      "media_1sem": 13.0,
+      "disciplinas_2sem_inscritas": 6,
+      "disciplinas_2sem_aprovadas": 6,
+      "media_2sem": 13.0,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": true,
+      "mora_longe_de_casa": true,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0003",
+    "nome": "Débora Martins",
+    "turma": "Turma B",
+    "email_responsavel": "responsavel.a0003@example.com",
+    "dados": {
+      "idade": 20,
+      "nota_admissao": 135.8,
+      "disciplinas_1sem_inscritas": 6,
+      "disciplinas_1sem_aprovadas": 6,
+      "media_1sem": 13.67,
+      "disciplinas_2sem_inscritas": 6,
+      "disciplinas_2sem_aprovadas": 6,
+      "media_2sem": 13.33,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": false,
+      "mora_longe_de_casa": true,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0004",
+    "nome": "Felipe Duarte",
+    "turma": "Turma A",
+    "email_responsavel": "responsavel.a0004@example.com",
+    "dados": {
+      "idade": 23,
+      "nota_admissao": 121.5,
+      "disciplinas_1sem_inscritas": 7,
+      "disciplinas_1sem_aprovadas": 6,
+      "media_1sem": 13.48,
+      "disciplinas_2sem_inscritas": 7,
+      "disciplinas_2sem_aprovadas": 6,
+      "media_2sem": 13.48,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": false,
+      "mora_longe_de_casa": false,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0005",
+    "nome": "Gabriela Nunes",
+    "turma": "Turma B",
+    "email_responsavel": "responsavel.a0005@example.com",
+    "dados": {
+      "idade": 39,
+      "nota_admissao": 117.5,
+      "disciplinas_1sem_inscritas": 6,
+      "disciplinas_1sem_aprovadas": 4,
+      "media_1sem": 11.25,
+      "disciplinas_2sem_inscritas": 6,
+      "disciplinas_2sem_aprovadas": 6,
+      "media_2sem": 11.33,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": false,
+      "mora_longe_de_casa": false,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0006",
+    "nome": "Igor Santana",
+    "turma": "Turma A",
+    "email_responsavel": "responsavel.a0006@example.com",
+    "dados": {
+      "idade": 21,
+      "nota_admissao": 118.8,
+      "disciplinas_1sem_inscritas": 5,
+      "disciplinas_1sem_aprovadas": 3,
+      "media_1sem": 10.67,
+      "disciplinas_2sem_inscritas": 5,
+      "disciplinas_2sem_aprovadas": 2,
+      "media_2sem": 12.5,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": true,
+      "devedor": false,
+      "bolsista": false,
+      "mora_longe_de_casa": true,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0007",
+    "nome": "Júlia Ferraz",
+    "turma": "Turma B",
+    "email_responsavel": "responsavel.a0007@example.com",
+    "dados": {
+      "idade": 18,
+      "nota_admissao": 119.0,
+      "disciplinas_1sem_inscritas": 6,
+      "disciplinas_1sem_aprovadas": 6,
+      "media_1sem": 12.0,
+      "disciplinas_2sem_inscritas": 6,
+      "disciplinas_2sem_aprovadas": 2,
+      "media_2sem": 11.0,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": false,
+      "devedor": true,
+      "bolsista": false,
+      "mora_longe_de_casa": true,
+      "turno_diurno": true
+    }
+  },
+  {
+    "id": "A0008",
+    "nome": "Lucas Pereira",
+    "turma": "Turma A",
+    "email_responsavel": "responsavel.a0008@example.com",
+    "dados": {
+      "idade": 70,
+      "nota_admissao": 116.4,
+      "disciplinas_1sem_inscritas": 5,
+      "disciplinas_1sem_aprovadas": 0,
+      "media_1sem": 0.0,
+      "disciplinas_2sem_inscritas": 5,
+      "disciplinas_2sem_aprovadas": 0,
+      "media_2sem": 0.0,
+      "disciplinas_2sem_sem_avaliacao": 0,
+      "mensalidade_em_dia": false,
+      "devedor": true,
+      "bolsista": false,
+      "mora_longe_de_casa": false,
+      "turno_diurno": true
+    }
+  }
+]
