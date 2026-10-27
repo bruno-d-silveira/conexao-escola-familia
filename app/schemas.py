@@ -52,11 +52,25 @@ class Saude(BaseModel):
     modelo: str | None
 
 
+class Matricula(BaseModel):
+    situacao: Literal["ativa", "inativa"]
+    motivo: str | None = Field(None, description="Por que a matrícula está inativa")
+
+
+class Frequencia(BaseModel):
+    """Presença por semestre. Vem do diário de classe da escola; não entra no modelo."""
+    sem1: int = Field(..., ge=0, le=100, description="Frequência no 1º semestre (%)")
+    sem2: int = Field(..., ge=0, le=100, description="Frequência no 2º semestre (%)")
+    fonte: Literal["demo", "diario_de_classe"]
+
+
 class Aluno(BaseModel):
     id: str
     nome: str
     turma: str
     email_responsavel: str
+    matricula: Matricula
+    frequencia: Frequencia
     dados: DadosEstudante
 
 

@@ -29,16 +29,18 @@ class Escola:
     def preparar(self) -> None:
         with self._con() as con:
             con.execute("""create table if not exists alunos (
-                id text primary key, nome text, turma text, email_responsavel text, dados text)""")
+                id text primary key, nome text, turma text, email_responsavel text,
+                matricula text, frequencia text, dados text)""")
             con.execute("""create table if not exists registros (
                 id integer primary key autoincrement, aluno_id text, professor text,
                 acompanhamento text, predicao text, status text,
                 criado_em text, aprovado_em text, aprovado_por text)""")
             if con.execute("select count(*) from alunos").fetchone()[0] == 0:
                 for a in json.loads(ALUNOS_SEMENTE.read_text(encoding="utf-8")):
-                    con.execute("insert into alunos values (?,?,?,?,?)",
+                    con.execute("insert into alunos values (?,?,?,?,?,?,?)",
                                 (a["id"], a["nome"], a["turma"], a["email_responsavel"],
-                                 json.dumps(a["dados"])))
+                                 json.dumps(a["matricula"], ensure_ascii=False),
+                                 json.dumps(a["frequencia"]), json.dumps(a["dados"])))
             con.execute("""create table if not exists professores (
                 id text primary key, nome text, sal text, senha_hash text)""")
             if con.execute("select count(*) from professores").fetchone()[0] == 0:
@@ -100,7 +102,8 @@ class Escola:
 
     @staticmethod
     def _aluno(r) -> dict:
-        return {**dict(r), "dados": json.loads(r["dados"])}
+        return {**dict(r), "matricula": json.loads(r["matricula"]),
+                "frequencia": json.loads(r["frequencia"]), "dados": json.loads(r["dados"])}
 
     @staticmethod
     def _registro(r) -> dict:
