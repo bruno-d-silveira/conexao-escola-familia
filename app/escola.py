@@ -9,6 +9,7 @@ from app.seguranca import senha_confere
 
 ALUNOS_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "alunos_ficticios.json"
 PROFESSORES_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "professores_ficticios.json"
+COORDENACAO_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "coordenacao_ficticia.json"
 
 
 class Escola:
@@ -51,6 +52,12 @@ class Escola:
                 for p in json.loads(PROFESSORES_SEMENTE.read_text(encoding="utf-8")):
                     con.execute("insert into professores values (?,?,?,?)",
                                 (p["id"], p["nome"], p["sal"], p["senha_hash"]))
+            con.execute("""create table if not exists coordenacao (
+                id text primary key, nome text, sal text, senha_hash text)""")
+            if con.execute("select count(*) from coordenacao").fetchone()[0] == 0:
+                for p in json.loads(COORDENACAO_SEMENTE.read_text(encoding="utf-8")):
+                    con.execute("insert into coordenacao values (?,?,?,?)",
+                                (p["id"], p["nome"], p["sal"], p["senha_hash"]))
 
     def professores(self) -> list[dict]:
         """Só id e nome: o hash da senha nunca sai do banco."""
@@ -59,8 +66,19 @@ class Escola:
 
     def autenticar(self, professor_id: str, senha: str) -> dict | None:
         """Devolve o professor se a senha confere; senão, None."""
+        return self._autenticar("professores", professor_id, senha)
+
+    def coordenacao(self) -> list[dict]:
+        """Só id e nome, como nos professores."""
         with self._con() as con:
-            r = con.execute("select * from professores where id = ?", (professor_id,)).fetchone()
+            return [dict(r) for r in con.execute("select id, nome from coordenacao order by nome")]
+
+    def autenticar_coordenacao(self, coordenador_id: str, senha: str) -> dict | None:
+        return self._autenticar("coordenacao", coordenador_id, senha)
+
+    def _autenticar(self, tabela: str, pessoa_id: str, senha: str) -> dict | None:
+        with self._con() as con:
+            r = con.execute(f"select * from {tabela} where id = ?", (pessoa_id,)).fetchone()
         if r is None or not senha_confere(senha, r["sal"], r["senha_hash"]):
             return None
         return {"id": r["id"], "nome": r["nome"]}

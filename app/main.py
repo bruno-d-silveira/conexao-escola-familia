@@ -15,6 +15,7 @@ from app.escola import Escola
 from app.indicadores import medias_por_semestre
 from app.routers import escola, indicadores, predicao
 from app.services import ServicoModelo
+from app.sessoes import Sessoes
 
 RAIZ = Path(__file__).resolve().parents[1]
 log = logging.getLogger("evasao")
@@ -30,6 +31,7 @@ async def lifespan(app: FastAPI):
         log.error("models/modelo_evasao.joblib não existe: rode `python treinar.py`.")
     app.state.escola = Escola(RAIZ / "data" / "escola.db")
     app.state.escola.preparar()
+    app.state.sessoes = Sessoes()
     app.state.medias = medias_por_semestre(RAIZ / "data" / "data.csv")
     yield
 
