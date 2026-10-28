@@ -64,6 +64,18 @@ class Frequencia(BaseModel):
     fonte: Literal["demo", "diario_de_classe"]
 
 
+class PontoMedia(BaseModel):
+    m1: float = Field(..., ge=0, le=10, description="Média do 1º semestre (0 a 10)")
+    m2: float = Field(..., ge=0, le=10, description="Média do 2º semestre (0 a 10)")
+    evadiu: bool
+
+
+class IndicadorMedias(BaseModel):
+    r: float = Field(..., ge=-1, le=1, description="Correlação de Pearson entre as duas médias")
+    n: int
+    pontos: list[PontoMedia]
+
+
 class Aluno(BaseModel):
     id: str
     nome: str
