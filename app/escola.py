@@ -41,6 +41,10 @@ class Escola:
                                 (a["id"], a["nome"], a["turma"], a["email_responsavel"],
                                  json.dumps(a["matricula"], ensure_ascii=False),
                                  json.dumps(a["frequencia"]), json.dumps(a["dados"])))
+            # Trilha de auditoria (LGPD, art. 37): quem fez o quê com os dados de qual aluno, e quando.
+            con.execute("""create table if not exists acessos (
+                id integer primary key autoincrement, aluno_id text, registro_id integer,
+                acao text, quem text, em text)""")
             con.execute("""create table if not exists professores (
                 id text primary key, nome text, sal text, senha_hash text)""")
             if con.execute("select count(*) from professores").fetchone()[0] == 0:
@@ -99,6 +103,17 @@ class Escola:
             con.execute("update registros set status = 'aprovado', aprovado_em = ?, aprovado_por = ? "
                         "where id = ?", (agora, coordenador, registro_id))
         return self.registro(registro_id)
+
+    def registrar_acesso(self, aluno_id: str, registro_id: int, acao: str, quem: str) -> None:
+        agora = datetime.now().isoformat(timespec="seconds")
+        with self._con() as con:
+            con.execute("insert into acessos (aluno_id, registro_id, acao, quem, em) values (?,?,?,?,?)",
+                        (aluno_id, registro_id, acao, quem, agora))
+
+    def acessos(self, aluno_id: str) -> list[dict]:
+        with self._con() as con:
+            return [dict(r) for r in con.execute(
+                "select registro_id, acao, quem, em from acessos where aluno_id = ? order by id", (aluno_id,))]
 
     @staticmethod
     def _aluno(r) -> dict:

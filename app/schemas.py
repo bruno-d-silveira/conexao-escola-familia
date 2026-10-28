@@ -118,6 +118,13 @@ class RegistroEnviado(BaseModel):
     mensagem: str
 
 
+class Acesso(BaseModel):
+    registro_id: int
+    acao: Literal["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
+    quem: str
+    em: datetime
+
+
 class Aprovacao(BaseModel):
     coordenador: str = Field(..., min_length=2, max_length=80)
 
