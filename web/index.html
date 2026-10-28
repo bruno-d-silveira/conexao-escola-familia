@@ -192,18 +192,42 @@ function grafico(a) {
     <p class="nota">Aprovação = disciplinas aprovadas ÷ inscritas. Média convertida de 0–20 para 0–10.</p>`;
 }
 
-function cartaoPredicao(p) {
+function valorDoFator(fator, d) {
+  // Nome legível e o valor do próprio aluno para cada coluna que o modelo usa.
+  const sem = fator.includes("1sem") ? "1º" : "2º";
+  const simNao = (v) => (v ? "sim" : "não");
+  if (fator.startsWith("media_")) return [`Média do ${sem} semestre`, `${(d[fator] / 2).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 10`];
+  if (fator.endsWith("_aprovadas")) return [`Aprovadas no ${sem} semestre`, `${d[fator]} de ${d[fator.replace("aprovadas", "inscritas")]}`];
+  if (fator.endsWith("_inscritas")) return [`Disciplinas no ${sem} semestre`, `${d[fator]} inscritas`];
+  return {
+    idade: ["Idade", `${d.idade} anos`],
+    nota_admissao: ["Nota de admissão", `${d.nota_admissao}`],
+    disciplinas_2sem_sem_avaliacao: ["Sem avaliação no 2º semestre", `${d[fator]} disciplinas`],
+    mensalidade_em_dia: ["Mensalidade", d.mensalidade_em_dia ? "em dia" : "atrasada"],
+    devedor: ["Dívida com a escola", simNao(d.devedor)],
+    bolsista: ["Bolsa de estudos", simNao(d.bolsista)],
+    mora_longe_de_casa: ["Mora longe de casa", simNao(d.mora_longe_de_casa)],
+    turno_diurno: ["Turno", d.turno_diurno ? "diurno" : "noturno"],
+  }[fator] || [fator, ""];
+}
+
+function cartaoPredicao(p, a) {
   const cor = { baixo: "var(--baixo)", medio: "var(--medio)", alto: "var(--alto)" }[p.nivel];
   const pct = Math.round(p.risco_evasao * 100);
   // Modelo nenhum tem certeza: 100% e 0% aparecem como "mais de 99%" e "menos de 1%".
   const texto = pct >= 100 ? "mais de 99%" : pct <= 0 ? "menos de 1%" : `${pct}%`;
+  const maior = Math.max(...p.fatores_do_dado.map((f) => f.peso), 1e-9);
+  const fatores = p.fatores_do_dado.map((f) => {
+    const [nome, valor] = valorDoFator(f.fator, a.dados);
+    return `<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:14px">
+        <span>${nome}</span><strong>${valor}</strong></div>
+      <div class="barra" style="height:6px;margin:4px 0"><div style="width:${Math.round((f.peso / maior) * 100)}%;background:${cor}"></div></div></div>`;
+  }).join("");
   return `
     <p>Risco de evasão: <strong class="${p.nivel}">${texto} (${p.nivel})</strong></p>
     <div class="barra"><div style="width:${pct}%;background:${cor}"></div></div>
-    <p><strong>O que o dado diz</strong></p>
-    <ul>${p.fatores_do_dado.map((f) => `<li>${f.descricao}</li>`).join("") || "<li>Nenhum fator puxando o risco para cima.</li>"}</ul>
-    <p><strong>Limitações do modelo</strong></p>
-    <ul class="suave">${p.limitacoes_do_modelo.map((c) => `<li>${c}</li>`).join("")}</ul>
+    <p><strong>O que mais pesou no cálculo</strong></p>
+    ${fatores || `<p class="suave">Nenhum dado puxando o risco para cima.</p>`}
     <p><strong>Perguntas para a conversa</strong></p>
     <ul>${p.perguntas_para_conversa.map((q) => `<li>${q}</li>`).join("")}</ul>`;
 }
@@ -283,7 +307,7 @@ async function abrir(id) {
     ${await dispersao(a)}
     <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
     <p>“${r.acompanhamento}”</p>
-    ${cartaoPredicao(r.predicao)}
+    ${cartaoPredicao(r.predicao, a)}
     <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button></div>`;
   $("detalhe").scrollIntoView({ behavior: "smooth" });
 }
