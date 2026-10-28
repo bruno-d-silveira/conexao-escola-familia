@@ -7,6 +7,7 @@ LIMITACOES = [
     "Base de treino: ensino superior em Portugal (UCI 697), não educação básica no Brasil.",
     "Não usa frequência: a presença vem do diário de classe e é mostrada à parte.",
     "Não lê o relatório do professor: o texto fica no registro, fora do cálculo.",
+    "Média 0 na base significa sem nota registrada no semestre, não nota zero.",
     "Mostra associação, não causa: o risco é um ponto de partida para a conversa, não um diagnóstico.",
 ]
 
