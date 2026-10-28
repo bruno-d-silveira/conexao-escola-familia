@@ -1,9 +1,9 @@
 """Rotas do fluxo da escola: professor registra, coordenação aprova e gera o documento."""
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.routers.predicao import checar_coerencia
-from app.schemas import (Aluno, Aprovacao, DadosEstudante, Documento, NovoRegistro, Professor, Registro,
-                         RegistroEnviado)
+from app.schemas import (Acesso, Aluno, Aprovacao, DadosEstudante, Documento, NovoRegistro, Professor,
+                         Registro, RegistroEnviado)
 
 router = APIRouter(prefix="/v1", tags=["escola"])
 
@@ -34,6 +34,7 @@ def registrar(novo: NovoRegistro, request: Request):
     predicao = request.app.state.modelo.prever(dados)
     registro = request.app.state.escola.novo_registro(
         novo.aluno_id, professor["nome"], novo.acompanhamento, predicao.model_dump())
+    request.app.state.escola.registrar_acesso(novo.aluno_id, registro["id"], "relatorio_enviado", professor["nome"])
     return RegistroEnviado(id=registro["id"], status=registro["status"],
                            mensagem="Relatório enviado à coordenação.")
 
@@ -45,6 +46,26 @@ def listar_registros(request: Request, status: str | None = None):
     return request.app.state.escola.registros(status)
 
 
+@router.get("/registros/{registro_id}", response_model=Registro)
+def abrir_ficha(registro_id: int, request: Request,
+                coordenador: str = Query(..., min_length=2, max_length=80, description="Quem está abrindo a ficha")):
+    """Abre a ficha completa de um registro. Cada abertura fica na trilha de auditoria."""
+    escola = request.app.state.escola
+    reg = escola.registro(registro_id)
+    if reg is None:
+        raise HTTPException(404, f"Registro {registro_id} não encontrado.")
+    escola.registrar_acesso(reg["aluno_id"], registro_id, "ficha_aberta", coordenador)
+    return reg
+
+
+@router.get("/alunos/{aluno_id}/acessos", response_model=list[Acesso])
+def listar_acessos(aluno_id: str, request: Request):
+    """Trilha de auditoria do aluno: quem enviou, abriu, aprovou ou gerou documento, e quando."""
+    if request.app.state.escola.aluno(aluno_id) is None:
+        raise HTTPException(404, f"Aluno {aluno_id} não encontrado.")
+    return request.app.state.escola.acessos(aluno_id)
+
+
 @router.post("/registros/{registro_id}/aprovar", response_model=Registro)
 def aprovar(registro_id: int, aprovacao: Aprovacao, request: Request):
     escola = request.app.state.escola
@@ -53,6 +74,7 @@ def aprovar(registro_id: int, aprovacao: Aprovacao, request: Request):
         raise HTTPException(404, f"Registro {registro_id} não encontrado.")
     if reg["status"] == "aprovado":
         raise HTTPException(400, f"Registro {registro_id} já foi aprovado.")
+    escola.registrar_acesso(reg["aluno_id"], registro_id, "aprovado", aprovacao.coordenador)
     return escola.aprovar(registro_id, aprovacao.coordenador)
 
 
@@ -66,6 +88,7 @@ def documento(registro_id: int, request: Request):
     if reg["status"] != "aprovado":
         raise HTTPException(400, "O documento só sai depois da aprovação da coordenação.")
     aluno = escola.aluno(reg["aluno_id"])
+    escola.registrar_acesso(reg["aluno_id"], registro_id, "documento_gerado", reg["aprovado_por"])
     p = reg["predicao"]
     perguntas = "\n".join(f"  - {q}" for q in p["perguntas_para_conversa"])
     texto = (

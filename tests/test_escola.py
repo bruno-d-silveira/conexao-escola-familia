@@ -52,3 +52,16 @@ def test_fluxo_professor_coordenacao(cliente):
     doc = cliente.get(f"/v1/registros/{reg['id']}/documento").json()
     assert doc["para"].endswith("@example.com")
     assert "não é um diagnóstico" in doc["texto"]
+
+
+def test_trilha_de_auditoria_registra_cada_acesso(cliente):
+    r = cliente.post("/v1/registros", json={"aluno_id": "A0003", "professor_id": "P002", "senha": SENHA_DEMO,
+                                           "acompanhamento": "Chegou atrasado três vezes na semana."})
+    rid = r.json()["id"]
+    assert cliente.get(f"/v1/registros/{rid}").status_code == 422  # sem nome, a ficha não abre
+    assert cliente.get(f"/v1/registros/{rid}", params={"coordenador": "Coord. Ana"}).status_code == 200
+    cliente.post(f"/v1/registros/{rid}/aprovar", json={"coordenador": "Coord. Ana"})
+    cliente.get(f"/v1/registros/{rid}/documento")
+    trilha = cliente.get("/v1/alunos/A0003/acessos").json()
+    assert [a["acao"] for a in trilha] == ["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
+    assert [a["quem"] for a in trilha] == ["Prof. Marcos Vieira", "Coord. Ana", "Coord. Ana", "Coord. Ana"]
