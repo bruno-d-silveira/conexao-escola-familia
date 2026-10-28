@@ -80,13 +80,21 @@
 
   <section id="coordenacao" hidden>
     <div class="cartao">
-      <label for="coord-nome">Coordenador(a)</label>
-      <input id="coord-nome" placeholder="Nome de quem aprova">
+      <div id="login-coord">
+        <label for="coord-id">Coordenação</label>
+        <select id="coord-id"></select>
+        <label for="coord-senha">Senha</label>
+        <input id="coord-senha" type="password" autocomplete="current-password">
+        <button class="acao" onclick="entrarCoordenacao()">Entrar</button>
+      </div>
+      <p id="coord-logada" hidden></p>
       <p id="erro-coord" class="erro"></p>
     </div>
-    <div id="kpis" class="kpis"></div>
-    <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
-      <div id="fila"></div></div>
+    <div id="painel-coord" hidden>
+      <div id="kpis" class="kpis"></div>
+      <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
+        <div id="fila"></div></div>
+    </div>
     <div id="detalhe"></div>
     <div id="documento"></div>
   </section>
@@ -96,17 +104,20 @@
 const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
+let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
 
 function aba(nome) {
   for (const n of ["professor", "coordenacao"]) {
     $(n).hidden = n !== nome;
     $("aba-" + n).classList.toggle("ativo", n === nome);
   }
-  if (nome === "coordenacao") carregarFila();
+  if (nome === "coordenacao" && passe) carregarFila();
 }
 
 async function api(caminho, opcoes = {}) {
-  const r = await fetch(caminho, { headers: { "Content-Type": "application/json" }, ...opcoes });
+  const headers = { "Content-Type": "application/json" };
+  if (passe) headers.Authorization = `Bearer ${passe}`;
+  const r = await fetch(caminho, { headers, ...opcoes });
   const corpo = await r.json();
   if (!r.ok) {
     const d = corpo.detail;
@@ -116,6 +127,8 @@ async function api(caminho, opcoes = {}) {
 }
 
 async function carregarCadastros() {
+  const coordenacao = await api("/v1/coordenacao");
+  $("coord-id").innerHTML = coordenacao.map((c) => `<option value="${c.id}">${c.nome}</option>`).join("");
   const professores = await api("/v1/professores");
   $("professor-id").innerHTML = professores.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
   alunos = await api("/v1/alunos");
@@ -244,6 +257,30 @@ async function registrar() {
   } catch (e) { $("erro-professor").textContent = e.message; }
 }
 
+async function entrarCoordenacao() {
+  $("erro-coord").textContent = "";
+  try {
+    const r = await api("/v1/coordenacao/login", { method: "POST", body: JSON.stringify({
+      coordenador_id: $("coord-id").value, senha: $("coord-senha").value }) });
+    passe = r.passe;
+    $("coord-senha").value = "";
+    $("login-coord").hidden = true;
+    $("coord-logada").hidden = false;
+    $("coord-logada").innerHTML = `Entrou como <strong>${r.nome}</strong>
+      <a href="#" onclick="sairCoordenacao(); return false" class="suave" style="margin-left:8px">sair</a>`;
+    $("painel-coord").hidden = false;
+    carregarFila();
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function sairCoordenacao() {
+  passe = null;
+  $("login-coord").hidden = false;
+  $("coord-logada").hidden = true;
+  $("painel-coord").hidden = true;
+  for (const id of ["detalhe", "documento"]) $(id).innerHTML = "";
+}
+
 async function carregarFila() {
   // Prioridade: o risco do modelo, do maior para o menor. Quem decide o que fazer é a coordenação.
   const todos = await api("/v1/registros");
@@ -298,11 +335,8 @@ async function dispersao(a) {
 
 async function abrir(id) {
   // O relatório do professor puxa o resto: matrícula, rendimento e a previsão do modelo.
-  // Abrir a ficha exige o nome de quem abre: cada abertura vai para a trilha de auditoria.
-  $("erro-coord").textContent = "";
-  const quem = $("coord-nome").value.trim();
-  if (quem.length < 2) { $("erro-coord").textContent = "Informe seu nome para abrir a ficha."; return; }
-  const r = await api(`/v1/registros/${id}?coordenador=${encodeURIComponent(quem)}`);
+  // Cada abertura vai para a trilha de auditoria, no nome de quem fez o login.
+  const r = await api(`/v1/registros/${id}`);
   const a = alunos.find((x) => x.id === r.aluno_id);
   const trilha = await api(`/v1/alunos/${a.id}/acessos`);
   $("documento").innerHTML = "";
@@ -330,7 +364,7 @@ function historico(trilha) {
 async function aprovar(id) {
   $("erro-coord").textContent = "";
   try {
-    await api(`/v1/registros/${id}/aprovar`, { method: "POST", body: JSON.stringify({ coordenador: $("coord-nome").value }) });
+    await api(`/v1/registros/${id}/aprovar`, { method: "POST" });
     const doc = await api(`/v1/registros/${id}/documento`);
     const mailto = `mailto:${doc.para}?subject=${encodeURIComponent(doc.assunto)}&body=${encodeURIComponent(doc.texto)}`;
     $("documento").innerHTML = `<div class="cartao"><p class="suave nao-imprime">Para: ${doc.para}</p>
