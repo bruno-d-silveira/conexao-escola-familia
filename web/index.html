@@ -29,8 +29,13 @@
   .selo { display:inline-block; padding:2px 10px; border-radius:12px; font-size:13px; font-weight:600; }
   .selo.ativa { background:#e6f4ea; color:var(--baixo); } .selo.inativa { background:#fdecea; color:var(--alto); }
   .legenda { display:flex; gap:16px; font-size:13px; color:var(--suave); margin:8px 0 0; }
+  .ficha { display:grid; grid-template-columns:2fr 1.4fr 1fr 1fr; gap:1px; background:var(--linha);
+           border:1px solid var(--linha); border-radius:8px; overflow:hidden; margin:12px 0; }
+  .ficha div { background:var(--cartao); padding:8px 10px; font-size:14px; }
+  .ficha small { display:block; color:var(--suave); font-size:12px; }
+  .nota { color:var(--suave); font-size:12px; margin:4px 0 12px; }
   .legenda i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
-  :root { --aprov:#1f5fbf; --freq:#0f8a7e; }
+  :root { --aprov:#1f5fbf; --freq:#0f8a7e; --ficou:#8fa8d8; --evadiu:#e8833a; }
   .kpis { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:12px 0; }
   .kpi { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:12px 16px; }
   .kpi b { display:block; font-size:28px; } .kpi span { color:var(--suave); font-size:13px; }
@@ -90,6 +95,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let alunos = [];
+let medias = null;
 
 function aba(nome) {
   for (const n of ["professor", "coordenacao"]) {
@@ -131,12 +137,17 @@ function mostrarResumo() {
   // O professor vê a matrícula e o rendimento do semestre. A previsão fica com a coordenação.
   const a = alunos.find((x) => x.id === $("aluno").value);
   if (!a) return;
+  $("painel-aluno").innerHTML = ficha(a) + grafico(a);
+}
+
+function ficha(a) {
   const m = a.matricula;
-  $("painel-aluno").innerHTML = `
-    <p>Matrícula: <span class="selo ${m.situacao}">${m.situacao}</span>
-      ${m.motivo ? `<span class="suave"> · ${m.motivo}</span>` : ""}
-      <span class="suave"> · ${a.dados.idade} anos na matrícula</span></p>
-    ${grafico(a)}`;
+  return `<div class="ficha">
+      <div><small>Nome completo</small>${a.nome}</div>
+      <div><small>Matrícula</small>${a.id} · <span class="selo ${m.situacao}">${m.situacao}</span></div>
+      <div><small>Turma</small>${a.turma}</div>
+      <div><small>Idade</small>${a.dados.idade} anos</div>
+    </div>${m.motivo ? `<p class="suave">Matrícula inativa: ${m.motivo}</p>` : ""}`;
 }
 
 function grafico(a) {
@@ -177,7 +188,8 @@ function grafico(a) {
   return `<svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:480px" role="img"
       aria-label="Aprovação e frequência por semestre de ${a.nome}">${svg}</svg>
     <div class="legenda"><span><i style="background:var(--aprov)"></i>Aprovação nas disciplinas</span>
-      <span><i style="background:var(--freq)"></i>Frequência</span><span>· ${fonte}</span></div>`;
+      <span><i style="background:var(--freq)"></i>Frequência</span><span>· ${fonte}</span></div>
+    <p class="nota">Aprovação = disciplinas aprovadas ÷ inscritas. Média convertida de 0–20 para 0–10.</p>`;
 }
 
 function cartaoPredicao(p) {
@@ -228,17 +240,47 @@ async function carregarFila() {
   $("detalhe").innerHTML = "";
 }
 
+async function dispersao(a) {
+  // Cada ponto é um estudante da base; o aluno aberto aparece destacado no meio de todos.
+  medias = medias || await api("/v1/indicadores/medias");
+  const L = 360, A = 320, m = 40, lado = L - m - 12;
+  const x = (v) => m + (v / 10) * lado, y = (v) => A - m - (v / 10) * lado;
+  let svg = "";
+  for (const v of [0, 5, 10]) {
+    svg += `<line x1="${x(0)}" x2="${x(10)}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}</text>
+      <text x="${x(v)}" y="${A - m + 16}" text-anchor="middle" font-size="11" fill="#5f6368">${v}</text>`;
+  }
+  svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(10)}" y2="${y(10)}" stroke="#9aa0a6" stroke-dasharray="4 4"/>`;
+  for (const p of medias.pontos) {
+    svg += `<circle cx="${x(p.m1)}" cy="${y(p.m2)}" r="2" fill="${p.evadiu ? "var(--evadiu)" : "var(--ficou)"}" opacity=".45"/>`;
+  }
+  const m1 = a.dados.media_1sem / 2, m2 = a.dados.media_2sem / 2;
+  svg += `<g><title>${a.nome}: ${m1.toFixed(1)} → ${m2.toFixed(1)}</title>
+    <circle cx="${x(m1)}" cy="${y(m2)}" r="7" fill="#1f2328" stroke="#fff" stroke-width="2"/></g>
+    <text x="${x(m1) + 10}" y="${y(m2) - 8}" font-size="12" font-weight="600" fill="#1f2328">${a.nome.split(" ")[0]}</text>
+    <text x="${x(0) + 6}" y="${y(10) + 14}" font-size="12" fill="#1f2328">r = ${medias.r.toLocaleString("pt-BR")}</text>
+    <text x="${x(5)}" y="${A - 6}" text-anchor="middle" font-size="11" fill="#5f6368">média do 1º semestre</text>
+    <text transform="translate(12 ${y(5)}) rotate(-90)" text-anchor="middle" font-size="11" fill="#5f6368">média do 2º semestre</text>`;
+  return `<p><strong>Onde ele está entre ${medias.n.toLocaleString("pt-BR")} estudantes</strong>
+      <span class="suave">· acima da diagonal melhorou, abaixo piorou</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:360px" role="img"
+      aria-label="Dispersão das médias do 1º e do 2º semestre, com ${a.nome} destacado">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--ficou)"></i>continuou</span>
+      <span><i style="background:var(--evadiu)"></i>evadiu</span></div>
+    <p class="nota">Cada ponto é um estudante da base UCI (ensino superior, Portugal). Média 0 = sem nota registrada
+      no semestre. r = correlação de Pearson.</p>`;
+}
+
 async function abrir(id) {
   // O relatório do professor puxa o resto: matrícula, rendimento e a previsão do modelo.
   const r = (await api("/v1/registros")).find((x) => x.id === id);
   const a = alunos.find((x) => x.id === r.aluno_id);
-  const m = a.matricula;
   $("documento").innerHTML = "";
   $("detalhe").innerHTML = `<div class="cartao">
-    <p><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma} · ${a.dados.idade} anos</span></p>
-    <p>Matrícula: <span class="selo ${m.situacao}">${m.situacao}</span>
-      ${m.motivo ? `<span class="suave"> · ${m.motivo}</span>` : ""}</p>
+    ${ficha(a)}
     ${grafico(a)}
+    ${await dispersao(a)}
     <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
     <p>“${r.acompanhamento}”</p>
     ${cartaoPredicao(r.predicao)}
