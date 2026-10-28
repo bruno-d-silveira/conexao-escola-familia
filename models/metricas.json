@@ -1,0 +1,43 @@
+{
+  "base": "UCI 697 - Predict Students' Dropout and Academic Success (CC BY 4.0)",
+  "alvo": "1 = evadiu (Dropout); 0 = matriculado ou formado",
+  "divisao": {
+    "treino": 2654,
+    "validacao": 885,
+    "teste": 885
+  },
+  "colunas": [
+    "idade",
+    "nota_admissao",
+    "disciplinas_1sem_inscritas",
+    "disciplinas_1sem_aprovadas",
+    "media_1sem",
+    "disciplinas_2sem_inscritas",
+    "disciplinas_2sem_aprovadas",
+    "media_2sem",
+    "disciplinas_2sem_sem_avaliacao",
+    "mensalidade_em_dia",
+    "devedor",
+    "bolsista",
+    "mora_longe_de_casa",
+    "turno_diurno"
+  ],
+  "validacao": {
+    "regressao_logistica": {
+      "acuracia": 0.8689,
+      "f1_evasao": 0.8027,
+      "roc_auc": 0.9209
+    },
+    "gradient_boosting": {
+      "acuracia": 0.8497,
+      "f1_evasao": 0.7687,
+      "roc_auc": 0.9077
+    }
+  },
+  "modelo_escolhido": "regressao_logistica",
+  "teste": {
+    "acuracia": 0.8723,
+    "f1_evasao": 0.8035,
+    "roc_auc": 0.9235
+  }
+}

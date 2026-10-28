@@ -1,0 +1,14 @@
+[
+  {
+    "id": "C001",
+    "nome": "Coord.ª Lúcia Ramos",
+    "sal": "7fad5cda4ae6226715718fb8e71c4e42",
+    "senha_hash": "e46affd7f1268624692df96f03b82d49ebb4606ad6b55c6ec15ac1f352ed73d4"
+  },
+  {
+    "id": "C002",
+    "nome": "Coord. Paulo Teixeira",
+    "sal": "e9109b3b7b59fe6a0ab5d80291bdc9da",
+    "senha_hash": "be5aeb1952d9fdc149b7709150154a0fd33a8b0a22cf42620b4809a3ace9e18a"
+  }
+]

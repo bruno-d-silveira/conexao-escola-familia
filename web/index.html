@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conexão Escola-Família</title>
+<style>
+  :root { --tinta:#1f2328; --suave:#5f6368; --linha:#d9d9d9; --fundo:#fafaf7; --cartao:#fff;
+          --baixo:#2e7d32; --medio:#b26a00; --alto:#c62828; --azul:#1f5fbf; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; color:var(--tinta); background:var(--fundo); }
+  header { padding:16px 20px; border-bottom:1px solid var(--linha); background:var(--cartao); }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--suave); font-size:14px; }
+  nav { display:flex; gap:8px; padding:12px 20px; }
+  nav button { padding:8px 14px; border:1px solid var(--linha); background:var(--cartao); border-radius:6px; cursor:pointer; }
+  nav button.ativo { border-color:var(--azul); color:var(--azul); font-weight:600; }
+  main { max-width:900px; margin:0 auto; padding:0 20px 40px; }
+  .cartao { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:16px; margin:12px 0; }
+  label { display:block; font-size:14px; margin:10px 0 4px; }
+  select, input, textarea { width:100%; padding:8px; border:1px solid var(--linha); border-radius:6px; font:inherit; }
+  textarea { min-height:90px; }
+  button.acao { margin-top:12px; padding:9px 16px; border:0; border-radius:6px; background:var(--azul); color:#fff; cursor:pointer; }
+  .barra { height:10px; background:#eee; border-radius:5px; overflow:hidden; margin:8px 0; }
+  .barra div { height:100%; }
+  .baixo { color:var(--baixo); } .medio { color:var(--medio); } .alto { color:var(--alto); }
+  ul { margin:6px 0; padding-left:20px; } .suave { color:var(--suave); font-size:14px; }
+  .erro { color:var(--alto); font-size:14px; }
+  .selo { display:inline-block; padding:2px 10px; border-radius:12px; font-size:13px; font-weight:600; }
+  .selo.ativa { background:#e6f4ea; color:var(--baixo); } .selo.inativa { background:#fdecea; color:var(--alto); }
+  .legenda { display:flex; gap:16px; font-size:13px; color:var(--suave); margin:8px 0 0; }
+  .ficha { display:grid; grid-template-columns:2fr 1.4fr 1fr 1fr; gap:1px; background:var(--linha);
+           border:1px solid var(--linha); border-radius:8px; overflow:hidden; margin:12px 0; }
+  .ficha div { background:var(--cartao); padding:8px 10px; font-size:14px; }
+  .ficha small { display:block; color:var(--suave); font-size:12px; }
+  .nota { color:var(--suave); font-size:12px; margin:4px 0 12px; }
+  .legenda i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
+  :root { --aprov:#1f5fbf; --freq:#0f8a7e; --ficou:#8fa8d8; --evadiu:#e8833a; }
+  .kpis { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:12px 0; }
+  .kpi { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:12px 16px; }
+  .kpi b { display:block; font-size:28px; } .kpi span { color:var(--suave); font-size:13px; }
+  .linha { display:grid; grid-template-columns:70px 1fr auto; gap:12px; align-items:center;
+           padding:10px 0; border-top:1px solid var(--linha); cursor:pointer; }
+  .linha:first-child { border-top:0; } .linha:hover { background:#f4f6fb; }
+  .nivel { text-align:center; padding:2px 0; border-radius:12px; font-size:12px; font-weight:600; color:#fff; }
+  .nivel.baixo { background:var(--baixo); } .nivel.medio { background:var(--medio); } .nivel.alto { background:var(--alto); }
+  pre { white-space:pre-wrap; font:inherit; }
+  @media print { header, nav, .nao-imprime { display:none; } .cartao { border:0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Conexão Escola-Família</h1>
+  <p>O modelo aponta. A conversa completa. Nenhum dado sai sem a coordenação.</p>
+</header>
+<nav>
+  <button id="aba-professor" class="ativo" onclick="aba('professor')">Professor</button>
+  <button id="aba-coordenacao" onclick="aba('coordenacao')">Coordenação</button>
+  <a class="suave" href="/docs" style="margin-left:auto;align-self:center">API (/docs)</a>
+</nav>
+<main>
+  <section id="professor">
+    <div class="cartao">
+      <label for="professor-id">Professor(a)</label>
+      <select id="professor-id"></select>
+      <label for="turma">Turma</label>
+      <select id="turma"></select>
+      <label for="aluno">Aluno (nº de cadastro)</label>
+      <select id="aluno"></select>
+      <div id="painel-aluno"></div>
+      <label for="acompanhamento">O que você tem observado</label>
+      <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
+      <label for="senha">Sua senha (confirma o envio)</label>
+      <input id="senha" type="password" autocomplete="current-password">
+      <button class="acao" onclick="registrar()">Enviar relatório</button>
+      <p id="erro-professor" class="erro"></p>
+    </div>
+    <div id="resultado"></div>
+  </section>
+
+  <section id="coordenacao" hidden>
+    <div class="cartao">
+      <div id="login-coord">
+        <label for="coord-id">Coordenação</label>
+        <select id="coord-id"></select>
+        <label for="coord-senha">Senha</label>
+        <input id="coord-senha" type="password" autocomplete="current-password">
+        <button class="acao" onclick="entrarCoordenacao()">Entrar</button>
+      </div>
+      <p id="coord-logada" hidden></p>
+      <p id="erro-coord" class="erro"></p>
+    </div>
+    <div id="painel-coord" hidden>
+      <div id="kpis" class="kpis"></div>
+      <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
+        <div id="fila"></div></div>
+    </div>
+    <div id="detalhe"></div>
+    <div id="documento"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let alunos = [];
+let medias = null;
+let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
+
+function aba(nome) {
+  for (const n of ["professor", "coordenacao"]) {
+    $(n).hidden = n !== nome;
+    $("aba-" + n).classList.toggle("ativo", n === nome);
+  }
+  if (nome === "coordenacao" && passe) carregarFila();
+}
+
+async function api(caminho, opcoes = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (passe) headers.Authorization = `Bearer ${passe}`;
+  const r = await fetch(caminho, { headers, ...opcoes });
+  const corpo = await r.json();
+  if (!r.ok) {
+    const d = corpo.detail;
+    throw new Error(Array.isArray(d) ? d.map((e) => e.msg).join("; ") : d);
+  }
+  return corpo;
+}
+
+async function carregarCadastros() {
+  const coordenacao = await api("/v1/coordenacao");
+  $("coord-id").innerHTML = coordenacao.map((c) => `<option value="${c.id}">${c.nome}</option>`).join("");
+  const professores = await api("/v1/professores");
+  $("professor-id").innerHTML = professores.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
+  alunos = await api("/v1/alunos");
+  const turmas = [...new Set(alunos.map((a) => a.turma))].sort();
+  $("turma").innerHTML = turmas.map((t) => `<option>${t}</option>`).join("");
+  $("turma").onchange = mostrarAlunosDaTurma;
+  $("aluno").onchange = mostrarResumo;
+  mostrarAlunosDaTurma();
+}
+
+function mostrarAlunosDaTurma() {
+  // Ao trocar de turma, o primeiro aluno já vem selecionado.
+  const daTurma = alunos.filter((a) => a.turma === $("turma").value);
+  $("aluno").innerHTML = daTurma.map((a) => `<option value="${a.id}">${a.id} · ${a.nome}</option>`).join("");
+  mostrarResumo();
+}
+
+function mostrarResumo() {
+  // O professor vê a matrícula e o rendimento do semestre. A previsão fica com a coordenação.
+  const a = alunos.find((x) => x.id === $("aluno").value);
+  if (!a) return;
+  $("painel-aluno").innerHTML = ficha(a) + grafico(a);
+}
+
+function ficha(a) {
+  const m = a.matricula;
+  return `<div class="ficha">
+      <div><small>Nome completo</small>${a.nome}</div>
+      <div><small>Matrícula</small>${a.id} · <span class="selo ${m.situacao}">${m.situacao}</span></div>
+      <div><small>Turma</small>${a.turma}</div>
+      <div><small>Idade</small>${a.dados.idade} anos</div>
+    </div>${m.motivo ? `<p class="suave">Matrícula inativa: ${m.motivo}</p>` : ""}`;
+}
+
+function grafico(a) {
+  // Barras agrupadas por semestre, numa escala só (0 a 100%): aprovação e frequência.
+  const d = a.dados, f = a.frequencia;
+  const pct = (aprov, insc) => (insc ? Math.round((aprov / insc) * 100) : 0);
+  // A base UCI usa notas de 0 a 20 (Portugal); a tela mostra na escala brasileira, de 0 a 10.
+  const nota = (v) => (v / 2).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const semestres = [
+    { nome: "1º semestre", aprov: pct(d.disciplinas_1sem_aprovadas, d.disciplinas_1sem_inscritas),
+      freq: f.sem1, media: d.media_1sem, texto: `${d.disciplinas_1sem_aprovadas}/${d.disciplinas_1sem_inscritas}` },
+    { nome: "2º semestre", aprov: pct(d.disciplinas_2sem_aprovadas, d.disciplinas_2sem_inscritas),
+      freq: f.sem2, media: d.media_2sem, texto: `${d.disciplinas_2sem_aprovadas}/${d.disciplinas_2sem_inscritas}` },
+  ];
+  const L = 480, A = 210, base = 170, topo = 20, alt = base - topo;
+  const y = (v) => base - (v / 100) * alt;
+  let svg = "";
+  for (const v of [0, 50, 100]) {
+    svg += `<line x1="40" x2="${L - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="34" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}%</text>`;
+  }
+  semestres.forEach((s, i) => {
+    const x0 = 80 + i * 200;
+    const barras = [
+      { v: s.aprov, cor: "var(--aprov)", dica: `Aprovação: ${s.texto} disciplinas (${s.aprov}%)` },
+      { v: s.freq, cor: "var(--freq)", dica: `Frequência: ${s.freq}%` },
+    ];
+    barras.forEach((b, j) => {
+      const x = x0 + j * 52;
+      svg += `<g><title>${s.nome} · ${b.dica}</title>
+        <rect x="${x}" y="${y(b.v)}" width="44" height="${base - y(b.v)}" rx="4" fill="${b.cor}"/>
+        <text x="${x + 22}" y="${y(b.v) - 5}" text-anchor="middle" font-size="12" fill="#1f2328">${b.v}%</text></g>`;
+    });
+    svg += `<text x="${x0 + 48}" y="${base + 18}" text-anchor="middle" font-size="12" fill="#1f2328">${s.nome}</text>
+      <text x="${x0 + 48}" y="${base + 34}" text-anchor="middle" font-size="11" fill="#5f6368">média ${nota(s.media)} de 10</text>`;
+  });
+  const fonte = f.fonte === "demo" ? "frequência de demonstração" : "frequência do diário de classe";
+  return `<svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:480px" role="img"
+      aria-label="Aprovação e frequência por semestre de ${a.nome}">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--aprov)"></i>Aprovação nas disciplinas</span>
+      <span><i style="background:var(--freq)"></i>Frequência</span><span>· ${fonte}</span></div>
+    <p class="nota">Aprovação = disciplinas aprovadas ÷ inscritas. Média convertida de 0–20 para 0–10.</p>`;
+}
+
+function valorDoFator(fator, d) {
+  // Nome legível e o valor do próprio aluno para cada coluna que o modelo usa.
+  const sem = fator.includes("1sem") ? "1º" : "2º";
+  const simNao = (v) => (v ? "sim" : "não");
+  if (fator.startsWith("media_")) return [`Média do ${sem} semestre`, `${(d[fator] / 2).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 10`];
+  if (fator.endsWith("_aprovadas")) return [`Aprovadas no ${sem} semestre`, `${d[fator]} de ${d[fator.replace("aprovadas", "inscritas")]}`];
+  if (fator.endsWith("_inscritas")) return [`Disciplinas no ${sem} semestre`, `${d[fator]} inscritas`];
+  return {
+    idade: ["Idade", `${d.idade} anos`],
+    nota_admissao: ["Nota de admissão", `${d.nota_admissao}`],
+    disciplinas_2sem_sem_avaliacao: ["Sem avaliação no 2º semestre", `${d[fator]} disciplinas`],
+    mensalidade_em_dia: ["Mensalidade", d.mensalidade_em_dia ? "em dia" : "atrasada"],
+    devedor: ["Dívida com a escola", simNao(d.devedor)],
+    bolsista: ["Bolsa de estudos", simNao(d.bolsista)],
+    mora_longe_de_casa: ["Mora longe de casa", simNao(d.mora_longe_de_casa)],
+    turno_diurno: ["Turno", d.turno_diurno ? "diurno" : "noturno"],
+  }[fator] || [fator, ""];
+}
+
+function cartaoPredicao(p, a) {
+  const cor = { baixo: "var(--baixo)", medio: "var(--medio)", alto: "var(--alto)" }[p.nivel];
+  const pct = Math.round(p.risco_evasao * 100);
+  // Modelo nenhum tem certeza: 100% e 0% aparecem como "mais de 99%" e "menos de 1%".
+  const texto = pct >= 100 ? "mais de 99%" : pct <= 0 ? "menos de 1%" : `${pct}%`;
+  const maior = Math.max(...p.fatores_do_dado.map((f) => f.peso), 1e-9);
+  const fatores = p.fatores_do_dado.map((f) => {
+    const [nome, valor] = valorDoFator(f.fator, a.dados);
+    return `<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:14px">
+        <span>${nome}</span><strong>${valor}</strong></div>
+      <div class="barra" style="height:6px;margin:4px 0"><div style="width:${Math.round((f.peso / maior) * 100)}%;background:${cor}"></div></div></div>`;
+  }).join("");
+  return `
+    <p>Risco de evasão: <strong class="${p.nivel}">${texto} (${p.nivel})</strong></p>
+    <div class="barra"><div style="width:${pct}%;background:${cor}"></div></div>
+    <p><strong>O que mais pesou no cálculo</strong></p>
+    ${fatores || `<p class="suave">Nenhum dado puxando o risco para cima.</p>`}
+    <p><strong>Perguntas para a conversa</strong></p>
+    <ul>${p.perguntas_para_conversa.map((q) => `<li>${q}</li>`).join("")}</ul>`;
+}
+
+async function registrar() {
+  $("erro-professor").textContent = "";
+  try {
+    const reg = await api("/v1/registros", { method: "POST", body: JSON.stringify({
+      aluno_id: $("aluno").value, professor_id: $("professor-id").value, senha: $("senha").value,
+      acompanhamento: $("acompanhamento").value }) });
+    $("senha").value = "";
+    $("acompanhamento").value = "";
+    $("resultado").innerHTML = `<div class="cartao"><p>${reg.mensagem} Registro nº ${reg.id}.</p></div>`;
+  } catch (e) { $("erro-professor").textContent = e.message; }
+}
+
+async function entrarCoordenacao() {
+  $("erro-coord").textContent = "";
+  try {
+    const r = await api("/v1/coordenacao/login", { method: "POST", body: JSON.stringify({
+      coordenador_id: $("coord-id").value, senha: $("coord-senha").value }) });
+    passe = r.passe;
+    $("coord-senha").value = "";
+    $("login-coord").hidden = true;
+    $("coord-logada").hidden = false;
+    $("coord-logada").innerHTML = `Entrou como <strong>${r.nome}</strong>
+      <a href="#" onclick="sairCoordenacao(); return false" class="suave" style="margin-left:8px">sair</a>`;
+    $("painel-coord").hidden = false;
+    carregarFila();
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function sairCoordenacao() {
+  passe = null;
+  $("login-coord").hidden = false;
+  $("coord-logada").hidden = true;
+  $("painel-coord").hidden = true;
+  for (const id of ["detalhe", "documento"]) $(id).innerHTML = "";
+}
+
+async function carregarFila() {
+  // Prioridade: o risco do modelo, do maior para o menor. Quem decide o que fazer é a coordenação.
+  const todos = await api("/v1/registros");
+  const fila = todos.filter((r) => r.status === "aguardando_coordenacao")
+    .sort((x, y) => y.predicao.risco_evasao - x.predicao.risco_evasao);
+  $("kpis").innerHTML = `
+    <div class="kpi"><b>${fila.length}</b><span>pendências</span></div>
+    <div class="kpi"><b class="alto">${fila.filter((r) => r.predicao.nivel === "alto").length}</b><span>prioridade alta</span></div>
+    <div class="kpi"><b>${todos.length - fila.length}</b><span>encaminhados</span></div>`;
+  $("fila").innerHTML = fila.length ? fila.map((r) => {
+    const a = alunos.find((x) => x.id === r.aluno_id) || { nome: r.aluno_id, turma: "" };
+    return `<div class="linha" onclick="abrir(${r.id})">
+      <span class="nivel ${r.predicao.nivel}">${r.predicao.nivel}</span>
+      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span><br>
+        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span></span>
+      <span class="suave">abrir ›</span></div>`;
+  }).join("") : `<p class="suave">Nenhum relatório aguardando a coordenação.</p>`;
+  $("detalhe").innerHTML = "";
+}
+
+async function dispersao(a) {
+  // Cada ponto é um estudante da base; o aluno aberto aparece destacado no meio de todos.
+  medias = medias || await api("/v1/indicadores/medias");
+  const L = 360, A = 320, m = 40, lado = L - m - 12;
+  const x = (v) => m + (v / 10) * lado, y = (v) => A - m - (v / 10) * lado;
+  let svg = "";
+  for (const v of [0, 5, 10]) {
+    svg += `<line x1="${x(0)}" x2="${x(10)}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}</text>
+      <text x="${x(v)}" y="${A - m + 16}" text-anchor="middle" font-size="11" fill="#5f6368">${v}</text>`;
+  }
+  svg += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(10)}" y2="${y(10)}" stroke="#9aa0a6" stroke-dasharray="4 4"/>`;
+  for (const p of medias.pontos) {
+    svg += `<circle cx="${x(p.m1)}" cy="${y(p.m2)}" r="2" fill="${p.evadiu ? "var(--evadiu)" : "var(--ficou)"}" opacity=".45"/>`;
+  }
+  const m1 = a.dados.media_1sem / 2, m2 = a.dados.media_2sem / 2;
+  svg += `<g><title>${a.nome}: ${m1.toFixed(1)} → ${m2.toFixed(1)}</title>
+    <circle cx="${x(m1)}" cy="${y(m2)}" r="7" fill="#1f2328" stroke="#fff" stroke-width="2"/></g>
+    <text x="${x(m1) + 10}" y="${y(m2) - 8}" font-size="12" font-weight="600" fill="#1f2328">${a.nome.split(" ")[0]}</text>
+    <text x="${x(0) + 6}" y="${y(10) + 14}" font-size="12" fill="#1f2328">r = ${medias.r.toLocaleString("pt-BR")}</text>
+    <text x="${x(5)}" y="${A - 6}" text-anchor="middle" font-size="11" fill="#5f6368">média do 1º semestre</text>
+    <text transform="translate(12 ${y(5)}) rotate(-90)" text-anchor="middle" font-size="11" fill="#5f6368">média do 2º semestre</text>`;
+  return `<p><strong>Onde ele está entre ${medias.n.toLocaleString("pt-BR")} estudantes</strong>
+      <span class="suave">· acima da diagonal melhorou, abaixo piorou</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:360px" role="img"
+      aria-label="Dispersão das médias do 1º e do 2º semestre, com ${a.nome} destacado">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--ficou)"></i>continuou</span>
+      <span><i style="background:var(--evadiu)"></i>evadiu</span></div>
+    <p class="nota">Cada ponto é um estudante da base UCI (ensino superior, Portugal). Média 0 = sem nota registrada
+      no semestre. r = correlação de Pearson.</p>`;
+}
+
+async function abrir(id) {
+  // O relatório do professor puxa o resto: matrícula, rendimento e a previsão do modelo.
+  // Cada abertura vai para a trilha de auditoria, no nome de quem fez o login.
+  const r = await api(`/v1/registros/${id}`);
+  const a = alunos.find((x) => x.id === r.aluno_id);
+  const trilha = await api(`/v1/alunos/${a.id}/acessos`);
+  $("documento").innerHTML = "";
+  $("detalhe").innerHTML = `<div class="cartao">
+    ${ficha(a)}
+    ${grafico(a)}
+    ${await dispersao(a)}
+    <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
+    <p>“${r.acompanhamento}”</p>
+    ${cartaoPredicao(r.predicao, a)}
+    <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button>
+    ${historico(trilha)}</div>`;
+  $("detalhe").scrollIntoView({ behavior: "smooth" });
+}
+
+function historico(trilha) {
+  const nomes = { relatorio_enviado: "enviou o relatório", ficha_aberta: "abriu a ficha",
+                  aprovado: "aprovou", documento_gerado: "gerou o documento" };
+  return `<p style="margin-top:20px"><strong>Histórico de acesso</strong>
+      <span class="suave">· quem viu ou mexeu nos dados deste aluno (LGPD, art. 37)</span></p>
+    <ul class="suave">${trilha.map((t) =>
+      `<li>${t.em.replace("T", " ")} · ${t.quem} ${nomes[t.acao]} (registro nº ${t.registro_id})</li>`).join("")}</ul>`;
+}
+
+async function aprovar(id) {
+  $("erro-coord").textContent = "";
+  try {
+    await api(`/v1/registros/${id}/aprovar`, { method: "POST" });
+    const doc = await api(`/v1/registros/${id}/documento`);
+    const mailto = `mailto:${doc.para}?subject=${encodeURIComponent(doc.assunto)}&body=${encodeURIComponent(doc.texto)}`;
+    $("documento").innerHTML = `<div class="cartao"><p class="suave nao-imprime">Para: ${doc.para}</p>
+      <pre>${doc.texto}</pre>
+      <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
+      <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar ao responsável</a></div></div>`;
+    carregarFila();
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+carregarCadastros();
+</script>
+</body>
+</html>
