@@ -125,8 +125,16 @@ class Acesso(BaseModel):
     em: datetime
 
 
-class Aprovacao(BaseModel):
-    coordenador: str = Field(..., min_length=2, max_length=80)
+class LoginCoordenacao(BaseModel):
+    coordenador_id: str = Field(..., pattern=r"^C\d{3}$", examples=["C001"])
+    senha: str = Field(..., min_length=4, max_length=64)
+
+
+class PasseCoordenacao(BaseModel):
+    """Vai no cabeçalho de cada pedido da coordenação: Authorization: Bearer <passe>."""
+    passe: str
+    nome: str
+    expira_em: datetime
 
 
 class Documento(BaseModel):

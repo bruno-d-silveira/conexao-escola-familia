@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
+from gerar_coordenacao_ficticia import SENHA_DEMO as SENHA_COORD
 from gerar_professores_ficticios import SENHA_DEMO
 
 
@@ -18,6 +19,12 @@ def cliente(tmp_path, monkeypatch):
         yield c
 
 
+def passe(cliente) -> dict:
+    """Faz o login da coordenação e devolve o cabeçalho com o passe."""
+    r = cliente.post("/v1/coordenacao/login", json={"coordenador_id": "C001", "senha": SENHA_COORD})
+    return {"Authorization": f"Bearer {r.json()['passe']}"}
+
+
 def test_professores_sem_hash_de_senha(cliente):
     r = cliente.get("/v1/professores")
     assert r.status_code == 200
@@ -28,7 +35,7 @@ def test_senha_errada_401_e_nada_registrado(cliente):
     r = cliente.post("/v1/registros", json={"aluno_id": "A0008", "professor_id": "P001", "senha": "errada",
                                            "acompanhamento": "Tentativa com a senha errada."})
     assert r.status_code == 401
-    assert cliente.get("/v1/registros").json() == []
+    assert cliente.get("/v1/registros", headers=passe(cliente)).json() == []
 
 
 def test_aluno_inexistente_404(cliente):
@@ -42,26 +49,41 @@ def test_fluxo_professor_coordenacao(cliente):
                                            "acompanhamento": "Faltou às duas últimas provas."})
     assert r.status_code == 201
     assert "predicao" not in r.json()  # o professor não recebe a previsão
-    reg = cliente.get("/v1/registros").json()[0]
+    h = passe(cliente)
+    reg = cliente.get("/v1/registros", headers=h).json()[0]
     assert reg["status"] == "aguardando_coordenacao"
     assert reg["professor"] == "Prof.ª Helena Costa"
-    assert cliente.get(f"/v1/registros/{reg['id']}/documento").status_code == 400
-    r = cliente.post(f"/v1/registros/{reg['id']}/aprovar", json={"coordenador": "Coord. Teste"})
-    assert r.status_code == 200 and r.json()["status"] == "aprovado"
-    assert cliente.post(f"/v1/registros/{reg['id']}/aprovar", json={"coordenador": "X1"}).status_code == 400
-    doc = cliente.get(f"/v1/registros/{reg['id']}/documento").json()
+    assert cliente.get(f"/v1/registros/{reg['id']}/documento", headers=h).status_code == 400
+    r = cliente.post(f"/v1/registros/{reg['id']}/aprovar", headers=h)
+    assert r.status_code == 200 and r.json()["aprovado_por"] == "Coord.ª Lúcia Ramos"
+    assert cliente.post(f"/v1/registros/{reg['id']}/aprovar", headers=h).status_code == 400
+    doc = cliente.get(f"/v1/registros/{reg['id']}/documento", headers=h).json()
     assert doc["para"].endswith("@example.com")
     assert "não é um diagnóstico" in doc["texto"]
+
+
+def test_coordenacao_sem_passe_401(cliente):
+    for rota in ["/v1/registros", "/v1/registros/1", "/v1/registros/1/documento", "/v1/alunos/A0001/acessos"]:
+        assert cliente.get(rota).status_code == 401
+    assert cliente.post("/v1/registros/1/aprovar").status_code == 401
+    assert cliente.get("/v1/registros", headers={"Authorization": "Bearer inventado"}).status_code == 401
+
+
+def test_login_coordenacao_senha_errada_401(cliente):
+    r = cliente.post("/v1/coordenacao/login", json={"coordenador_id": "C001", "senha": "errada"})
+    assert r.status_code == 401
+    assert all(set(p) == {"id", "nome"} for p in cliente.get("/v1/coordenacao").json())
 
 
 def test_trilha_de_auditoria_registra_cada_acesso(cliente):
     r = cliente.post("/v1/registros", json={"aluno_id": "A0003", "professor_id": "P002", "senha": SENHA_DEMO,
                                            "acompanhamento": "Chegou atrasado três vezes na semana."})
     rid = r.json()["id"]
-    assert cliente.get(f"/v1/registros/{rid}").status_code == 422  # sem nome, a ficha não abre
-    assert cliente.get(f"/v1/registros/{rid}", params={"coordenador": "Coord. Ana"}).status_code == 200
-    cliente.post(f"/v1/registros/{rid}/aprovar", json={"coordenador": "Coord. Ana"})
-    cliente.get(f"/v1/registros/{rid}/documento")
-    trilha = cliente.get("/v1/alunos/A0003/acessos").json()
+    h = passe(cliente)
+    assert cliente.get(f"/v1/registros/{rid}", headers=h).status_code == 200
+    cliente.post(f"/v1/registros/{rid}/aprovar", headers=h)
+    cliente.get(f"/v1/registros/{rid}/documento", headers=h)
+    trilha = cliente.get("/v1/alunos/A0003/acessos", headers=h).json()
     assert [a["acao"] for a in trilha] == ["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
-    assert [a["quem"] for a in trilha] == ["Prof. Marcos Vieira", "Coord. Ana", "Coord. Ana", "Coord. Ana"]
+    # O "quem" vem do login, não de um nome digitado.
+    assert [a["quem"] for a in trilha] == ["Prof. Marcos Vieira"] + ["Coord.ª Lúcia Ramos"] * 3
