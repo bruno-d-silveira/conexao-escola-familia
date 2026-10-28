@@ -298,8 +298,13 @@ async function dispersao(a) {
 
 async function abrir(id) {
   // O relatório do professor puxa o resto: matrícula, rendimento e a previsão do modelo.
-  const r = (await api("/v1/registros")).find((x) => x.id === id);
+  // Abrir a ficha exige o nome de quem abre: cada abertura vai para a trilha de auditoria.
+  $("erro-coord").textContent = "";
+  const quem = $("coord-nome").value.trim();
+  if (quem.length < 2) { $("erro-coord").textContent = "Informe seu nome para abrir a ficha."; return; }
+  const r = await api(`/v1/registros/${id}?coordenador=${encodeURIComponent(quem)}`);
   const a = alunos.find((x) => x.id === r.aluno_id);
+  const trilha = await api(`/v1/alunos/${a.id}/acessos`);
   $("documento").innerHTML = "";
   $("detalhe").innerHTML = `<div class="cartao">
     ${ficha(a)}
@@ -308,8 +313,18 @@ async function abrir(id) {
     <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
     <p>“${r.acompanhamento}”</p>
     ${cartaoPredicao(r.predicao, a)}
-    <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button></div>`;
+    <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button>
+    ${historico(trilha)}</div>`;
   $("detalhe").scrollIntoView({ behavior: "smooth" });
+}
+
+function historico(trilha) {
+  const nomes = { relatorio_enviado: "enviou o relatório", ficha_aberta: "abriu a ficha",
+                  aprovado: "aprovou", documento_gerado: "gerou o documento" };
+  return `<p style="margin-top:20px"><strong>Histórico de acesso</strong>
+      <span class="suave">· quem viu ou mexeu nos dados deste aluno (LGPD, art. 37)</span></p>
+    <ul class="suave">${trilha.map((t) =>
+      `<li>${t.em.replace("T", " ")} · ${t.quem} ${nomes[t.acao]} (registro nº ${t.registro_id})</li>`).join("")}</ul>`;
 }
 
 async function aprovar(id) {
