@@ -18,7 +18,7 @@ Referências de estratégia e formação que inspiraram o fluxo (sem vínculo in
 
 | Quem | Faz | Vê |
 |---|---|---|
-| Professor (senha) | escolhe turma e aluno, escreve o relatório | ficha do aluno, aprovação e frequência por semestre |
+| Professor (senha) | entra com a senha, escolhe turma e aluno, escreve o relatório e assina com o nome completo | ficha do aluno, aprovação e frequência por semestre |
 | Coordenação (senha) | abre a fila, aprova, gera o documento | prioridade, % de evasão, o que mais pesou, dispersão das médias, histórico de acesso |
 | Família | recebe o convite para conversar | documento impresso ou e-mail, sem a lista de fatores |
 
@@ -50,7 +50,9 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 
 - Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
 - O professor não recebe a previsão; ela fica com a coordenação.
-- Coordenação entra com login e recebe um passe temporário (2 h, só em memória); sem passe, as rotas respondem 401.
+- Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
+- O cadastro dos alunos só abre com login.
+- O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
 - Trilha de auditoria: cada envio, abertura de ficha, aprovação e documento fica gravado com quem e quando (LGPD, art. 37).
 - O modelo recebe só números acadêmicos, nunca nome ou texto.
 - Todos os nomes, e-mails e senhas são fictícios. O banco `data/escola.db` não vai para o repositório.
@@ -65,7 +67,7 @@ app/
   regras.py             limitações, níveis e perguntas, escritos à mão
   escola.py             SQLite: alunos, professores, coordenação, registros, acessos
   seguranca.py          hash de senha PBKDF2
-  sessoes.py            passes temporários da coordenação
+  sessoes.py            passes temporários do professor e da coordenação
   indicadores.py        médias por semestre e r de Pearson
   routers/
     predicao.py         /health e /v1/predict
@@ -96,13 +98,15 @@ uvicorn app.main:app --reload
 |---|---|---|---|
 | GET | `/health` | livre | status e se o modelo está carregado |
 | POST | `/v1/predict` | livre | risco, nível, fatores, limitações, perguntas |
-| GET | `/v1/alunos`, `/v1/professores`, `/v1/coordenacao` | livre | cadastros (sem hash) |
-| POST | `/v1/registros` | senha do professor | só a confirmação do envio |
-| POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário |
-| GET | `/v1/registros`, `/v1/registros/{id}` | passe | fila e ficha (abrir a ficha grava o acesso) |
-| POST | `/v1/registros/{id}/aprovar` | passe | registro aprovado |
-| GET | `/v1/registros/{id}/documento` | passe | texto para a família |
-| GET | `/v1/alunos/{id}/acessos` | passe | histórico de acesso |
+| GET | `/v1/professores`, `/v1/coordenacao` | livre | nomes para o login (sem hash) |
+| POST | `/v1/professores/login` | senha do professor | passe temporário do professor |
+| POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário da coordenação |
+| GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos |
+| POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
+| GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (abrir a ficha grava o acesso) |
+| POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
+| GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
+| GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
 
 | Código | Quando |
@@ -110,6 +114,7 @@ uvicorn app.main:app --reload
 | 200 / 201 | sucesso |
 | 400 | regra de negócio (aprovadas > inscritas, registro já aprovado, documento antes da aprovação) |
 | 401 | senha errada ou sem passe |
+| 403 | passe de outro papel, ou nome da assinatura que não confere |
 | 404 | aluno ou registro inexistente |
 | 422 | tipo ou faixa inválidos (Pydantic) |
 | 500 | modelo não carregado ou falha não prevista |
