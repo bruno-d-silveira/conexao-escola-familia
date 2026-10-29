@@ -15,13 +15,16 @@ RAIZ = Path(__file__).resolve().parent
 SENHA_DEMO = "escola2026"
 PROFESSORES = [("P001", "Prof.ª Helena Costa"), ("P002", "Prof. Marcos Vieira"),
                ("P003", "Prof.ª Renata Alves")]
+# Cada professor só vê e só envia relato dos alunos das turmas dele.
+TURMAS = {"P001": ["Turma A"], "P002": ["Turma B"], "P003": ["Turma A", "Turma B"]}
 
 
 def main():
     professores = []
     for pid, nome in PROFESSORES:
         sal = secrets.token_hex(16)
-        professores.append({"id": pid, "nome": nome, "sal": sal, "senha_hash": gerar_hash(SENHA_DEMO, sal)})
+        professores.append({"id": pid, "nome": nome, "sal": sal, "senha_hash": gerar_hash(SENHA_DEMO, sal),
+                            "turmas": TURMAS[pid]})
     destino = RAIZ / "data" / "professores_ficticios.json"
     destino.write_text(json.dumps(professores, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"{len(professores)} professores fictícios em {destino}")

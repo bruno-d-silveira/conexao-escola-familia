@@ -3,18 +3,28 @@
     "id": "P001",
     "nome": "Prof.ª Helena Costa",
     "sal": "5464d0f2875347b50258683083809cf3",
-    "senha_hash": "befac7b5cf7af4097c146e395b13e267c7a0f8f7b02b77935ccab6dc6da6f840"
+    "senha_hash": "befac7b5cf7af4097c146e395b13e267c7a0f8f7b02b77935ccab6dc6da6f840",
+    "turmas": [
+      "Turma A"
+    ]
   },
   {
     "id": "P002",
     "nome": "Prof. Marcos Vieira",
     "sal": "3b15aa4b621c95403b81aee2e8b15c38",
-    "senha_hash": "add9d029bc14da65b01a76915ef51e729a4d99fea2f5d3c68735df1aee247e84"
+    "senha_hash": "add9d029bc14da65b01a76915ef51e729a4d99fea2f5d3c68735df1aee247e84",
+    "turmas": [
+      "Turma B"
+    ]
   },
   {
     "id": "P003",
     "nome": "Prof.ª Renata Alves",
     "sal": "03a214ab011cb3438e592bf1d18d86a3",
-    "senha_hash": "572138bc9ba90c42757d9d83b83b6244843e2b19c4e7ca4b70d1c3dcc79687fd"
+    "senha_hash": "572138bc9ba90c42757d9d83b83b6244843e2b19c4e7ca4b70d1c3dcc79687fd",
+    "turmas": [
+      "Turma A",
+      "Turma B"
+    ]
   }
 ]
