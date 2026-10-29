@@ -1,4 +1,6 @@
 """Rotas do fluxo da escola: professor registra, coordenação aprova e gera o documento."""
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
@@ -101,8 +103,12 @@ def aprovar(registro_id: int, request: Request, quem: dict = Depends(coordenacao
 
 
 @router.get("/registros/{registro_id}/documento", response_model=Documento)
-def documento(registro_id: int, request: Request, quem: dict = Depends(coordenacao_logada)):
-    """Rascunho para a conversa com o responsável: só sai depois da aprovação."""
+def documento(registro_id: int, request: Request, modelo: Literal["convite", "convite_boletim"] = "convite",
+              quem: dict = Depends(coordenacao_logada)):
+    """Convite para a conversa com o responsável: só sai depois da aprovação.
+
+    O relato do professor e a previsão ficam no banco, na ficha do aluno; não vão para a família.
+    """
     escola = request.app.state.escola
     reg = escola.registro(registro_id)
     if reg is None:
@@ -111,15 +117,27 @@ def documento(registro_id: int, request: Request, quem: dict = Depends(coordenac
         raise HTTPException(400, "O documento só sai depois da aprovação da coordenação.")
     aluno = escola.aluno(reg["aluno_id"])
     escola.registrar_acesso(reg["aluno_id"], registro_id, "documento_gerado", reg["aprovado_por"])
-    p = reg["predicao"]
-    perguntas = "\n".join(f"  - {q}" for q in p["perguntas_para_conversa"])
+    boletim = ""
+    if modelo == "convite_boletim":
+        d, f = aluno["dados"], aluno["frequencia"]
+        # A base UCI usa notas de 0 a 20; o boletim mostra na escala brasileira, de 0 a 10.
+        nota = lambda v: f"{v / 2:.1f}".replace(".", ",")
+        boletim = (
+            f"Boletim de {aluno['nome']}:\n"
+            f"  1º semestre: {d['disciplinas_1sem_aprovadas']} de {d['disciplinas_1sem_inscritas']} disciplinas "
+            f"aprovadas, média {nota(d['media_1sem'])} de 10, frequência {f['sem1']}%\n"
+            f"  2º semestre: {d['disciplinas_2sem_aprovadas']} de {d['disciplinas_2sem_inscritas']} disciplinas "
+            f"aprovadas, média {nota(d['media_2sem'])} de 10, frequência {f['sem2']}%\n\n"
+        )
+    ano, mes, dia = reg["aprovado_em"][:10].split("-")
     texto = (
         f"Prezada família de {aluno['nome']} ({aluno['turma']}),\n\n"
-        f"A escola gostaria de conversar sobre o acompanhamento de {aluno['nome']}.\n\n"
-        f"O que {reg['professor']} observou:\n  {reg['acompanhamento']}\n\n"
-        f"Algumas perguntas que podem ajudar na conversa:\n{perguntas}\n\n"
-        f"Este documento não é um diagnóstico. É um convite para conversar.\n\n"
-        f"Coordenação ({reg['aprovado_por']}), {reg['aprovado_em'][:10]}"
+        f"Queremos marcar uma conversa com vocês sobre o ano de {aluno['nome']} na escola.\n\n"
+        f"{boletim}"
+        f"É um encontro para trocar impressões e combinar juntos como apoiar {aluno['nome']} daqui para frente. "
+        f"Fiquem à vontade para sugerir o dia e o horário que forem melhores.\n\n"
+        f"Até breve,\n"
+        f"Coordenação ({reg['aprovado_por']}), {dia}/{mes}/{ano}"
     )
     return Documento(registro_id=registro_id, para=aluno["email_responsavel"],
                      assunto=f"Acompanhamento de {aluno['nome']}", texto=texto)

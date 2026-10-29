@@ -1,4 +1,5 @@
 """Testes do fluxo da escola: login do professor, registro, aprovação e documento."""
+import re
 import shutil
 
 import pytest
@@ -59,7 +60,14 @@ def test_fluxo_professor_coordenacao(cliente):
     assert cliente.post(f"/v1/registros/{reg['id']}/aprovar", headers=h).status_code == 400
     doc = cliente.get(f"/v1/registros/{reg['id']}/documento", headers=h).json()
     assert doc["para"].endswith("@example.com")
-    assert "não é um diagnóstico" in doc["texto"]
+    assert "Queremos marcar uma conversa" in doc["texto"] and "diagnóstico" not in doc["texto"]
+    assert re.search(r"\d{2}/\d{2}/\d{4}$", doc["texto"])  # data no padrão brasileiro
+    # O relato do professor fica na ficha; não vai para a família.
+    assert "Faltou às duas últimas provas" not in doc["texto"] and "Boletim" not in doc["texto"]
+    com_boletim = cliente.get(f"/v1/registros/{reg['id']}/documento?modelo=convite_boletim", headers=h).json()
+    assert "Boletim" in com_boletim["texto"] and "frequência" in com_boletim["texto"]
+    assert "Faltou às duas últimas provas" not in com_boletim["texto"]
+    assert cliente.get(f"/v1/registros/{reg['id']}/documento?modelo=outro", headers=h).status_code == 422
 
 
 def test_coordenacao_sem_passe_401(cliente):

@@ -365,13 +365,23 @@ async function aprovar(id) {
   $("erro-coord").textContent = "";
   try {
     await api(`/v1/registros/${id}/aprovar`, { method: "POST" });
-    const doc = await api(`/v1/registros/${id}/documento`);
+    $("documento").innerHTML = `<div class="cartao"><p><strong>O que vai para a família?</strong></p>
+      <p class="suave">O relato do professor fica na ficha do aluno; não entra no documento.</p>
+      <button class="acao" onclick="gerarDocumento(${id}, 'convite_boletim')">Convite e boletim</button>
+      <button class="acao" onclick="gerarDocumento(${id}, 'convite')">Só o convite</button></div>`;
+    carregarFila();
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+async function gerarDocumento(id, modelo) {
+  $("erro-coord").textContent = "";
+  try {
+    const doc = await api(`/v1/registros/${id}/documento?modelo=${modelo}`);
     const mailto = `mailto:${doc.para}?subject=${encodeURIComponent(doc.assunto)}&body=${encodeURIComponent(doc.texto)}`;
     $("documento").innerHTML = `<div class="cartao"><p class="suave nao-imprime">Para: ${doc.para}</p>
       <pre>${doc.texto}</pre>
       <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
       <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar ao responsável</a></div></div>`;
-    carregarFila();
   } catch (e) { $("erro-coord").textContent = e.message; }
 }
 
