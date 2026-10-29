@@ -119,10 +119,16 @@ class RegistroEnviado(BaseModel):
 
 
 class Acesso(BaseModel):
-    registro_id: int
-    acao: Literal["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
+    registro_id: int | None = Field(None, description="Vazio quando a ação é sobre o aluno, não sobre um registro")
+    acao: Literal["relatorio_enviado", "fila_vista", "ficha_aberta", "historico_aberto", "aprovado",
+                  "documento_gerado", "documento_impresso", "envio_aberto"]
     quem: str
     em: datetime
+
+
+class Saida(BaseModel):
+    """O que a coordenação fez com o documento. O sistema não sabe se o e-mail foi mesmo enviado."""
+    tipo: Literal["documento_impresso", "envio_aberto"]
 
 
 class LoginProfessor(BaseModel):
