@@ -93,8 +93,8 @@ class Professor(BaseModel):
 
 class NovoRegistro(BaseModel):
     aluno_id: str = Field(..., pattern=r"^A\d{4}$", examples=["A0001"])
-    professor_id: str = Field(..., pattern=r"^P\d{3}$", examples=["P001"])
-    senha: str = Field(..., min_length=4, max_length=64, description="Senha do professor (não fica gravada)")
+    nome_completo: str = Field(..., min_length=3, max_length=120,
+                               description="Assinatura: o nome completo do professor que fez o login")
     acompanhamento: str = Field(..., min_length=10, max_length=1000,
                                 description="O que o professor tem observado (não entra no modelo)")
 
@@ -125,6 +125,11 @@ class Acesso(BaseModel):
     em: datetime
 
 
+class LoginProfessor(BaseModel):
+    professor_id: str = Field(..., pattern=r"^P\d{3}$", examples=["P001"])
+    senha: str = Field(..., min_length=4, max_length=64)
+
+
 class LoginCoordenacao(BaseModel):
     coordenador_id: str = Field(..., pattern=r"^C\d{3}$", examples=["C001"])
     senha: str = Field(..., min_length=4, max_length=64)
@@ -135,6 +140,10 @@ class PasseCoordenacao(BaseModel):
     passe: str
     nome: str
     expira_em: datetime
+
+
+class PasseProfessor(PasseCoordenacao):
+    """Passe do professor: abre o painel de alunos e o envio do relato, nunca as rotas da coordenação."""
 
 
 class Documento(BaseModel):
