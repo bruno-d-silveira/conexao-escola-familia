@@ -28,6 +28,14 @@
   .boletim th:first-child, .boletim td:first-child { text-align:left; }
   .boletim tfoot td { font-weight:600; }
   .boletim .aberto { background:#f4f6fb; font-style:italic; }
+  .alerta { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px; background:#fdecea;
+            color:var(--alto); font-size:12px; font-weight:600; }
+  .chip { display:inline-block; margin:4px 4px 0 0; padding:1px 8px; border:1px solid var(--linha); border-radius:10px;
+          font-size:12px; color:var(--suave); }
+  .multiplos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
+  .quadro { border:1px solid var(--linha); border-radius:8px; padding:8px 10px; font-size:13px; }
+  .quadro.imediata { border-left:3px solid var(--alto); }
+  button.acao.secundaria { background:var(--cartao); color:var(--azul); border:1px solid var(--azul); }
   .rolagem { overflow-x:auto; }
   .tempo { list-style:none; padding:0; margin:8px 0; border-left:2px solid var(--linha); }
   .tempo li { position:relative; padding:4px 0 10px 16px; font-size:14px; }
@@ -125,6 +133,7 @@
         <div id="kpis" class="kpis"></div>
         <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
           <div id="fila"></div></div>
+        <div class="cartao" id="painel-chaves"></div>
         <div id="detalhe"></div>
         <div id="documento"></div>
       </div>
@@ -136,7 +145,8 @@
 const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
-let registros = []; // os relatos que a coordenação já carregou: alimentam a fila e a caixa de casos
+let registros = [];
+let chavesDoAluno = []; // o banco de chaves do aluno aberto no mapa // os relatos que a coordenação já carregou: alimentam a fila e a caixa de casos
 let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
 let passeProfessor = null; // o do professor, separado: cada papel abre só a sua parte.
 
@@ -345,10 +355,11 @@ function sairCoordenacao() {
 }
 
 async function carregarFila() {
-  // Prioridade: o risco do modelo, do maior para o menor. Quem decide o que fazer é a coordenação.
+  // Prioridade: primeiro o perigo iminente que o motor de chaves achou no relato; depois o risco do modelo,
+  // do maior para o menor. Quem decide o que fazer é a coordenação.
   const todos = await api("/v1/registros");
   const fila = todos.filter((r) => r.status === "aguardando_coordenacao")
-    .sort((x, y) => y.predicao.risco_evasao - x.predicao.risco_evasao);
+    .sort((x, y) => y.alerta - x.alerta || y.predicao.risco_evasao - x.predicao.risco_evasao);
   $("kpis").innerHTML = `
     <div class="kpi"><b>${fila.length}</b><span>pendências</span></div>
     <div class="kpi"><b class="alto">${fila.filter((r) => r.predicao.nivel === "alto").length}</b><span>prioridade alta</span></div>
@@ -357,13 +368,38 @@ async function carregarFila() {
     const a = alunos.find((x) => x.id === r.aluno_id) || { nome: r.aluno_id, turma: "" };
     return `<div class="linha" onclick="abrir(${r.id})">
       <span class="nivel ${r.predicao.nivel}">${r.predicao.nivel}</span>
-      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span><br>
-        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span></span>
+      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span>
+        ${r.alerta ? `<span class="alerta">⚠ perigo iminente</span>` : ""}<br>
+        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span>
+        ${r.chaves.map((c) => `<span class="chip">${c}</span>`).join("")}</span>
       <span class="suave">abrir ›</span></div>`;
   }).join("") : `<p class="suave">Nenhum relatório aguardando a coordenação.</p>`;
   $("detalhe").innerHTML = "";
   registros = todos;
   mostrarCaixa();
+  $("painel-chaves").innerHTML = painelDaEscola(await api("/v1/indicadores/chaves"));
+}
+
+function painelDaEscola(p) {
+  // A vista da escola: cada chave num quadro pequeno, ocorrências por mês. Nenhum nome, nenhum relato.
+  const com = p.chaves.filter((c) => c.total).sort((x, y) => (x.gravidade === "imediata" ? -1 : 0) - (y.gravidade === "imediata" ? -1 : 0) || y.total - x.total);
+  const sem = p.chaves.filter((c) => !c.total).map((c) => c.nome);
+  const maior = Math.max(1, ...com.flatMap((c) => c.por_mes));
+  const quadro = (c) => {
+    const L = 200, A = 64, base = 46, passo = L / p.meses.length;
+    const barras = c.por_mes.map((n, i) => `<g><title>${p.meses[i]}: ${n} ocorrência${n === 1 ? "" : "s"}</title>
+        <rect x="${i * passo}" y="0" width="${passo}" height="${A}" fill="transparent"/>
+        ${n ? `<rect x="${i * passo + 3}" y="${base - (n / maior) * (base - 6)}" width="${passo - 6}" height="${(n / maior) * (base - 6)}"
+          rx="2" fill="${c.gravidade === "imediata" ? "var(--alto)" : "var(--aprov)"}"/>` : ""}
+        <text x="${i * passo + passo / 2}" y="${A - 4}" text-anchor="middle" font-size="9" fill="#5f6368">${p.meses[i][0]}</text></g>`).join("");
+    return `<div class="quadro ${c.gravidade}"><div style="display:flex;justify-content:space-between">
+        <strong>${c.nome}</strong><span>${c.total}</span></div>
+      ${c.gravidade === "imediata" ? `<span class="suave">⚠ perigo iminente</span>` : ""}
+      <svg viewBox="0 0 ${L} ${A}" width="100%" role="img" aria-label="${c.nome}: ocorrências por mês">${barras}</svg></div>`;
+  };
+  return `<p><strong>Chaves na escola</strong> <span class="suave">· ${p.ano_letivo}, ocorrências por mês letivo, sem nome de aluno</span></p>
+    ${com.length ? `<div class="multiplos">${com.map(quadro).join("")}</div>` : `<p class="suave">Nenhuma chave registrada em ${p.ano_letivo}.</p>`}
+    ${sem.length ? `<p class="nota">Sem ocorrência: ${sem.join(", ")}.</p>` : ""}`;
 }
 
 function mostrarCaixa(ativo) {
@@ -391,6 +427,7 @@ async function abrirAluno(id) {
   try {
     const a = alunos.find((x) => x.id === id);
     const b = await api(`/v1/alunos/${id}/boletim`);
+    chavesDoAluno = await api(`/v1/alunos/${id}/chaves`);
     const trilha = await api(`/v1/alunos/${id}/acessos`);
     const chamadas = registros.filter((r) => r.aluno_id === id).sort((x, y) => x.criado_em.localeCompare(y.criado_em));
     const situacao = { aguardando_coordenacao: "aguardando a coordenação", aprovado: "aprovada pela coordenação" };
@@ -405,11 +442,74 @@ async function abrirAluno(id) {
         ${chamadas.map((r) => `<li class="chamada" onclick="abrir(${r.id})">${dataBR(r.criado_em)} · chamada de atenção
           de ${r.professor} <span class="suave">· ${situacao[r.status]}</span></li>`).join("")}
       </ul>
+      ${graficoChaves(chavesDoAluno, b.ano_letivo)}
+      <div id="chave-detalhe"></div>
       ${graficoMeses(b)}
       ${tabelaBoletim(b)}
       ${historico(trilha)}</div>`;
     mostrarCaixa(id);
     $("detalhe").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function graficoChaves(chaves, ano) {
+  // Uma faixa por chave, o ano letivo no eixo. Passe o mouse para ver o tema; clique para ver a situação.
+  // Cheio = aberta; vazado = solucionada; cinza = descartada (o motor errou).
+  if (!chaves.length) return `<p class="suave">O motor não achou nenhuma chave nos relatos deste aluno.</p>`;
+  const meses = ["fev", "mar", "abr", "mai", "jun", "ago", "set", "out", "nov", "dez"];
+  const numero = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
+  const faixas = [...new Set(chaves.map((c) => c.chave))]
+    .sort((x, y) => (chaves.find((c) => c.chave === y).gravidade === "imediata") - (chaves.find((c) => c.chave === x).gravidade === "imediata"));
+  const L = 560, m = 140, linha = 30, A = faixas.length * linha + 30;
+  const x = (iso) => {
+    const [aa, mm, dd] = iso.slice(0, 10).split("-").map(Number);
+    let i = numero.indexOf(mm);
+    if (i < 0) i = mm === 7 ? 4.99 : mm < 2 ? 0 : 9.99; // julho é férias; fora do ano letivo vai para a borda
+    return m + ((aa < ano ? 0 : aa > ano ? 10 : i + (dd - 1) / 31) / 10) * (L - m - 10);
+  };
+  let svg = meses.map((mes, i) => `<text x="${m + ((i + 0.5) / 10) * (L - m - 10)}" y="${A - 8}" text-anchor="middle"
+    font-size="11" fill="#5f6368">${mes}</text>`).join("");
+  faixas.forEach((chave, k) => {
+    const yy = 14 + k * linha, primeira = chaves.find((c) => c.chave === chave);
+    svg += `<line x1="${m}" x2="${L - 10}" y1="${yy}" y2="${yy}" stroke="#eee"/>
+      <text x="${m - 8}" y="${yy + 4}" text-anchor="end" font-size="12" fill="#1f2328">${primeira.nome}</text>`;
+    for (const c of chaves.filter((c) => c.chave === chave)) {
+      const cor = c.situacao === "descartada" ? "#9aa0a6" : c.gravidade === "imediata" ? "var(--alto)" : "var(--aprov)";
+      const cheio = c.situacao === "aberta";
+      svg += `<g style="cursor:pointer" onclick="mostrarChave(${c.id})"><title>${c.nome} · ${dataBR(c.em)} · ${c.situacao} · clique para ver</title>
+        <circle cx="${x(c.em)}" cy="${yy}" r="12" fill="transparent"/>
+        <circle cx="${x(c.em)}" cy="${yy}" r="6" fill="${cheio ? cor : "#fff"}" stroke="${cor}" stroke-width="2"/></g>`;
+    }
+  });
+  return `<p><strong>Chaves dos relatos</strong> <span class="suave">· ${ano} · cheio = aberta, vazado = solucionada,
+      cinza = descartada · clique num ponto</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:560px" role="img"
+      aria-label="Chaves achadas nos relatos ao longo do ano">${svg}</svg>`;
+}
+
+function mostrarChave(id) {
+  // A situação ocorrida: o trecho do relato que disparou a chave e se ela já foi solucionada.
+  const c = chavesDoAluno.find((x) => x.id === id);
+  const botoes = c.situacao === "aberta"
+    ? `<button class="acao" onclick="mudarSituacao(${c.id}, 'solucionada')">Marcar como solucionada</button>
+       <button class="acao secundaria" onclick="mudarSituacao(${c.id}, 'descartada')">Descartar (o motor errou)</button>`
+    : `<button class="acao secundaria" onclick="mudarSituacao(${c.id}, 'aberta')">Reabrir</button>`;
+  $("chave-detalhe").innerHTML = `<div class="cartao" style="background:#f8f9fb">
+    <p><strong>${c.nome}</strong>${c.gravidade === "imediata" ? ` <span class="alerta">⚠ perigo iminente</span>` : ""}
+      <span class="suave">· ${dataBR(c.em)} · relato de ${c.professor}</span></p>
+    <p>“${c.trecho}”</p>
+    <p class="suave">Situação: <strong>${c.situacao}</strong>${c.atualizado_por ? ` · por ${c.atualizado_por} em ${dataBR(c.atualizado_em)}` : ""}</p>
+    ${botoes}
+    <button class="acao secundaria" onclick="abrir(${c.registro_id})">Abrir o relato completo</button></div>`;
+}
+
+async function mudarSituacao(id, situacao) {
+  $("erro-coord").textContent = "";
+  try {
+    const c = await api(`/v1/chaves/${id}/situacao`, { method: "POST", body: JSON.stringify({ situacao }) });
+    await carregarFila();
+    await abrirAluno(c.aluno_id);
+    mostrarChave(id);
   } catch (e) { $("erro-coord").textContent = e.message; }
 }
 
@@ -531,6 +631,8 @@ async function abrir(id) {
     ${await dispersao(a)}
     <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
     <p>“${r.acompanhamento}”</p>
+    ${r.chaves.length ? `<p class="suave">Chaves do relato: ${r.chaves.map((c) => `<span class="chip">${c}</span>`).join("")}
+      ${r.alerta ? `<span class="alerta">⚠ perigo iminente</span>` : ""}</p>` : ""}
     ${cartaoPredicao(r.predicao, a)}
     <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button>
     ${historico(trilha)}</div>`;
@@ -539,7 +641,9 @@ async function abrir(id) {
 
 function historico(trilha) {
   const nomes = { relatorio_enviado: "enviou o relatório", fila_vista: "viu na fila", ficha_aberta: "abriu a ficha",
-                  historico_aberto: "abriu o histórico", boletim_aberto: "abriu o boletim", aprovado: "aprovou", documento_gerado: "gerou o documento",
+                  historico_aberto: "abriu o histórico", boletim_aberto: "abriu o boletim",
+                  chaves_vistas: "viu as chaves", chave_solucionada: "marcou uma chave como solucionada",
+                  chave_descartada: "descartou uma chave", chave_aberta: "reabriu uma chave", aprovado: "aprovou", documento_gerado: "gerou o documento",
                   documento_impresso: "imprimiu o documento", envio_aberto: "abriu o e-mail para o responsável" };
   return `<p style="margin-top:20px"><strong>Histórico de acesso</strong>
       <span class="suave">· quem viu ou mexeu nos dados deste aluno (LGPD, art. 37)</span></p>
