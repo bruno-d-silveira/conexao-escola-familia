@@ -62,6 +62,25 @@ O relato do professor é livre ("saiu batendo cadeiras", "falou em discurso de �
 - A vista da escola mostra quantas vezes cada chave apareceu em cada mês, sem nome de aluno e sem relato.
 - O modelo de evasão não lê o relato nem as chaves.
 
+## Mar e chuva: avisos para as escolas
+
+Em Florianópolis, swell de sul com período e energia altos enche a maré nos mangues; com chuva forte, alaga e trava a mobilidade da cidade. A coordenação vê a previsão dos próximos 7 dias no jeito do app de clima do celular (uma frase no topo, a lista dos dias com chance de chuva, o tempo, máxima e mínima, e o aviso do dia), o mar de hoje e a altura das ondas no mar aberto e na praia. O aviso da semana sai no mesmo formato para imprimir, e em texto curto para o e-mail.
+
+| Fonte (pública, sem chave) | O que traz |
+|---|---|
+| [Open-Meteo Marine](https://open-meteo.com/en/docs/marine-weather-api) | onda no mar aberto e na praia (Campeche), swell (altura, direção, período), nível do mar |
+| [Open-Meteo Forecast](https://open-meteo.com/en/docs) | chuva, temperatura e o tempo de cada dia |
+| [INMET](https://portal.inmet.gov.br) | avisos meteorológicos ativos para Florianópolis (IBGE 4205407) |
+
+| Aviso do INMET | Nível no painel |
+|---|---|
+| Perigo Potencial | atenção |
+| Perigo, Grande Perigo | alerta |
+
+- O nível vem só dos avisos oficiais, de hoje até daqui a 2 dias. A regra do swell de sul ainda precisa de ajuste fino (não é qualquer ondulação de sul que pede chamada); até lá, os dados do mar aparecem, mas não acendem alerta.
+- A previsão fica guardada por 3 horas; o botão "atualizar" busca de novo.
+- É a única parte do sistema que depende da internet. Se uma fonte cair, a rota responde 503 e o resto continua funcionando. Os testes usam dados montados, sem rede.
+
 ## Proteção de dados
 
 - Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
@@ -83,6 +102,7 @@ app/
   schemas.py            contratos Pydantic com Field (faixas → 422)
   regras.py             limitações, níveis e perguntas, escritos à mão
   chaves.py             motor de chaves: o tema da situação em cada relato, escrito à mão
+  clima.py              mar e chuva: busca nas fontes públicas e o nível pelos avisos do INMET
   escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, chaves, acessos
   seguranca.py          hash de senha PBKDF2
   sessoes.py            passes temporários do professor e da coordenação
@@ -91,8 +111,9 @@ app/
     predicao.py         /health e /v1/predict
     escola.py           professor, coordenação, registros, documento, acessos
     indicadores.py      /v1/indicadores/medias
+    clima.py            /v1/clima e o aviso da semana
 web/index.html          telas do professor e da coordenação (HTML, CSS e JS, sem dependências)
-tests/                  API, fluxo da escola, motor de chaves e indicadores
+tests/                  API, fluxo da escola, motor de chaves, mar e chuva, indicadores
 gerar_*_ficticios.py    dados de demonstração
 treinar.py              pipeline offline
 ```
@@ -131,6 +152,8 @@ uvicorn app.main:app --reload
 | GET | `/v1/indicadores/chaves` | passe da coordenação | ocorrências de cada chave por mês letivo, sem nome de aluno |
 | GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
+| GET | `/v1/clima?atualizar=` | passe da coordenação | mar, maré, chuva, temperatura e avisos do INMET para 7 dias, com o nível do painel |
+| GET | `/v1/clima/aviso` | passe da coordenação | texto curto da semana para o e-mail a professores e pais |
 
 | Código | Quando |
 |---|---|
@@ -141,6 +164,7 @@ uvicorn app.main:app --reload
 | 404 | aluno ou registro inexistente |
 | 422 | tipo ou faixa inválidos (Pydantic) |
 | 500 | modelo não carregado ou falha não prevista |
+| 503 | previsão de mar e chuva indisponível (fonte pública fora do ar) |
 
 ## Testes
 
