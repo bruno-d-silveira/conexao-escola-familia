@@ -53,7 +53,8 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
 - O cadastro dos alunos só abre com login. O professor vê e envia relato só dos alunos das turmas dele; a coordenação vê a escola toda.
 - O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
-- Trilha de auditoria: cada envio, abertura de ficha, aprovação e documento fica gravado com quem e quando (LGPD, art. 37).
+- Trilha de auditoria (LGPD, art. 37): fica gravado, com quem e quando, cada envio, cada aluno que aparece na fila, cada abertura de ficha e de histórico, cada aprovação, cada documento gerado e cada vez que a coordenação imprime o documento ou abre o e-mail para o responsável. O "quem" vem sempre do login.
+- A trilha só aceita inclusão: gatilhos no SQLite barram alterar ou apagar uma linha, mesmo fora da API.
 - O modelo recebe só números acadêmicos, nunca nome ou texto.
 - Todos os nomes, e-mails e senhas são fictícios. O banco `data/escola.db` não vai para o repositório.
 
@@ -103,10 +104,11 @@ uvicorn app.main:app --reload
 | POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário da coordenação |
 | GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos (o professor recebe só as turmas dele) |
 | POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
-| GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (abrir a ficha grava o acesso) |
+| GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (as duas gravam o acesso) |
 | POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
 | GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
-| GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso |
+| POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
+| GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
 
 | Código | Quando |
