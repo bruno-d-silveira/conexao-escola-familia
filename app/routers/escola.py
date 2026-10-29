@@ -51,7 +51,11 @@ def _nome_sem_titulo(nome: str) -> str:
 
 @router.get("/alunos", response_model=list[Aluno])
 def listar_alunos(request: Request, quem: dict = Depends(alguem_logado)):
-    return request.app.state.escola.alunos()
+    """A coordenação vê a escola toda; o professor, só os alunos das turmas dele."""
+    escola = request.app.state.escola
+    if quem["papel"] == "professor":
+        return escola.alunos(turmas=escola.turmas_do_professor(quem["id"]))
+    return escola.alunos()
 
 
 @router.get("/professores", response_model=list[Professor])
@@ -91,6 +95,8 @@ def registrar(novo: NovoRegistro, request: Request, professor: dict = Depends(pr
     aluno = request.app.state.escola.aluno(novo.aluno_id)
     if aluno is None:
         raise HTTPException(404, f"Aluno {novo.aluno_id} não encontrado.")
+    if aluno["turma"] not in request.app.state.escola.turmas_do_professor(professor["id"]):
+        raise HTTPException(403, "Este aluno não é de uma turma sua. Nada foi enviado.")
     # O modelo recebe só os dados acadêmicos: nunca o nome, nunca o texto do professor.
     dados = DadosEstudante(**aluno["dados"])
     checar_coerencia(dados)

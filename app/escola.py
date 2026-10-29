@@ -52,6 +52,13 @@ class Escola:
                 for p in json.loads(PROFESSORES_SEMENTE.read_text(encoding="utf-8")):
                     con.execute("insert into professores values (?,?,?,?)",
                                 (p["id"], p["nome"], p["sal"], p["senha_hash"]))
+            # Turmas de cada professor: tabela à parte, para entrar também num banco que já existia.
+            con.execute("""create table if not exists professor_turmas (
+                professor_id text, turma text, primary key (professor_id, turma))""")
+            if con.execute("select count(*) from professor_turmas").fetchone()[0] == 0:
+                for p in json.loads(PROFESSORES_SEMENTE.read_text(encoding="utf-8")):
+                    for turma in p.get("turmas", []):
+                        con.execute("insert into professor_turmas values (?,?)", (p["id"], turma))
             con.execute("""create table if not exists coordenacao (
                 id text primary key, nome text, sal text, senha_hash text)""")
             if con.execute("select count(*) from coordenacao").fetchone()[0] == 0:
@@ -83,9 +90,16 @@ class Escola:
             return None
         return {"id": r["id"], "nome": r["nome"]}
 
-    def alunos(self) -> list[dict]:
+    def turmas_do_professor(self, professor_id: str) -> list[str]:
         with self._con() as con:
-            return [self._aluno(r) for r in con.execute("select * from alunos order by id")]
+            return [r["turma"] for r in con.execute(
+                "select turma from professor_turmas where professor_id = ? order by turma", (professor_id,))]
+
+    def alunos(self, turmas: list[str] | None = None) -> list[dict]:
+        """Todos os alunos, ou só os das turmas indicadas."""
+        with self._con() as con:
+            linhas = [self._aluno(r) for r in con.execute("select * from alunos order by id")]
+        return linhas if turmas is None else [a for a in linhas if a["turma"] in turmas]
 
     def aluno(self, aluno_id: str) -> dict | None:
         with self._con() as con:
