@@ -26,6 +26,17 @@ def passe(cliente) -> dict:
     return {"Authorization": f"Bearer {r.json()['passe']}"}
 
 
+def passe_professor(cliente, professor_id="P001") -> dict:
+    r = cliente.post("/v1/professores/login", json={"professor_id": professor_id, "senha": SENHA_DEMO})
+    return {"Authorization": f"Bearer {r.json()['passe']}"}
+
+
+def enviar(cliente, aluno_id, nome, texto, professor_id="P001"):
+    """O professor entra com a senha e assina o relato com o nome completo."""
+    return cliente.post("/v1/registros", headers=passe_professor(cliente, professor_id),
+                        json={"aluno_id": aluno_id, "nome_completo": nome, "acompanhamento": texto})
+
+
 def test_professores_sem_hash_de_senha(cliente):
     r = cliente.get("/v1/professores")
     assert r.status_code == 200
@@ -33,21 +44,45 @@ def test_professores_sem_hash_de_senha(cliente):
 
 
 def test_senha_errada_401_e_nada_registrado(cliente):
-    r = cliente.post("/v1/registros", json={"aluno_id": "A0008", "professor_id": "P001", "senha": "errada",
-                                           "acompanhamento": "Tentativa com a senha errada."})
+    r = cliente.post("/v1/professores/login", json={"professor_id": "P001", "senha": "errada"})
+    assert r.status_code == 401
+    r = cliente.post("/v1/registros", json={"aluno_id": "A0008", "nome_completo": "Helena Costa",
+                                           "acompanhamento": "Tentativa sem ter entrado."})
     assert r.status_code == 401
     assert cliente.get("/v1/registros", headers=passe(cliente)).json() == []
 
 
+def test_alunos_so_com_login(cliente):
+    assert cliente.get("/v1/alunos").status_code == 401
+    assert cliente.get("/v1/alunos", headers=passe_professor(cliente)).status_code == 200
+    assert cliente.get("/v1/alunos", headers=passe(cliente)).status_code == 200
+
+
+def test_passe_do_professor_nao_abre_a_coordenacao(cliente):
+    h = passe_professor(cliente)
+    for rota in ["/v1/registros", "/v1/registros/1", "/v1/registros/1/documento", "/v1/alunos/A0001/acessos"]:
+        assert cliente.get(rota, headers=h).status_code == 403
+    # E o passe da coordenação não envia relato no lugar do professor.
+    r = cliente.post("/v1/registros", headers=passe(cliente),
+                     json={"aluno_id": "A0008", "nome_completo": "Lúcia Ramos", "acompanhamento": "Não deveria sair."})
+    assert r.status_code == 401
+
+
+def test_nome_que_nao_confere_403_e_nada_registrado(cliente):
+    r = enviar(cliente, "A0008", "Marcos Vieira", "Assinou com o nome de outro professor.")
+    assert r.status_code == 403
+    assert cliente.get("/v1/registros", headers=passe(cliente)).json() == []
+    # Maiúscula, espaço sobrando e o título não barram.
+    assert enviar(cliente, "A0008", "  helena   COSTA ", "Assinou do jeito dela.").status_code == 201
+
+
 def test_aluno_inexistente_404(cliente):
-    r = cliente.post("/v1/registros", json={"aluno_id": "A9999", "professor_id": "P001", "senha": SENHA_DEMO,
-                                           "acompanhamento": "Teste de aluno inexistente."})
+    r = enviar(cliente, "A9999", "Helena Costa", "Teste de aluno inexistente.")
     assert r.status_code == 404
 
 
 def test_fluxo_professor_coordenacao(cliente):
-    r = cliente.post("/v1/registros", json={"aluno_id": "A0008", "professor_id": "P001", "senha": SENHA_DEMO,
-                                           "acompanhamento": "Faltou às duas últimas provas."})
+    r = enviar(cliente, "A0008", "Prof.ª Helena Costa", "Faltou às duas últimas provas.")
     assert r.status_code == 201
     assert "predicao" not in r.json()  # o professor não recebe a previsão
     h = passe(cliente)
@@ -84,8 +119,7 @@ def test_login_coordenacao_senha_errada_401(cliente):
 
 
 def test_trilha_de_auditoria_registra_cada_acesso(cliente):
-    r = cliente.post("/v1/registros", json={"aluno_id": "A0003", "professor_id": "P002", "senha": SENHA_DEMO,
-                                           "acompanhamento": "Chegou atrasado três vezes na semana."})
+    r = enviar(cliente, "A0003", "Marcos Vieira", "Chegou atrasado três vezes na semana.", professor_id="P002")
     rid = r.json()["id"]
     h = passe(cliente)
     assert cliente.get(f"/v1/registros/{rid}", headers=h).status_code == 200
