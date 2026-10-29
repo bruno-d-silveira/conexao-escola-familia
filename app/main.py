@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.escola import Escola
 from app.indicadores import medias_por_semestre
-from app.routers import escola, indicadores, predicao
+from app.routers import clima, escola, indicadores, predicao
 from app.services import ServicoModelo
 from app.sessoes import Sessoes
 
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.escola.preparar()
     app.state.sessoes = Sessoes()
     app.state.medias = medias_por_semestre(RAIZ / "data" / "data.csv")
+    app.state.clima = None  # a previsão é buscada na primeira consulta e guardada por 3 horas
     yield
 
 
@@ -45,6 +46,7 @@ app = FastAPI(
 app.include_router(predicao.router)
 app.include_router(escola.router)
 app.include_router(indicadores.router)
+app.include_router(clima.router)
 app.mount("/web", StaticFiles(directory=RAIZ / "web", html=True), name="web")
 
 

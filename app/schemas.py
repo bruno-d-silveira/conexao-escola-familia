@@ -193,6 +193,55 @@ class Boletim(BaseModel):
     fonte: Literal["demo", "diario_de_classe"]
 
 
+class AvisoINMET(BaseModel):
+    descricao: str
+    severidade: str
+    inicio: str
+    fim: str
+    riscos: list[str]
+    instrucoes: list[str]
+
+
+class DiaDeClima(BaseModel):
+    data: date
+    rotulo: str = Field(..., description="Hoje, Amanhã ou o dia da semana")
+    tempo: Literal["sol", "parcial", "nublado", "neblina", "chuva", "tempestade"]
+    temp_max: float | None = None
+    temp_min: float | None = None
+    swell_altura: float | None = Field(None, description="Altura máxima do swell no mar aberto (m)")
+    swell_direcao: float | None = Field(None, description="De onde vem o swell (graus)")
+    swell_rumo: str
+    swell_periodo: float | None = Field(None, description="Período máximo do swell (s)")
+    onda_praia: float | None = Field(None, description="Altura máxima da onda na praia (m)")
+    mare_max: float | None = Field(None, description="Nível do mar máximo no dia, na praia (m)")
+    chuva_mm: float | None = None
+    chuva_prob: int | None = Field(None, ge=0, le=100)
+    avisos: list[AvisoINMET]
+    nivel: Literal["normal", "atencao", "alerta"] = Field(..., description="Vem só dos avisos do INMET")
+
+
+class HorasDeOnda(BaseModel):
+    tempo: list[str]
+    onda_mar_aberto: list[float | None] = Field(..., description="Altura da onda no mar aberto (m)")
+    onda_praia: list[float | None]
+
+
+class Clima(BaseModel):
+    """Mar e chuva dos próximos 7 dias em Florianópolis, com o nível dos avisos oficiais para as escolas."""
+    atualizado_em: datetime
+    nivel: Literal["normal", "atencao", "alerta"] = Field(..., description="O pior nível de hoje até daqui a 2 dias")
+    resumo: str = Field(..., description="Uma frase curta para o topo do painel")
+    dias: list[DiaDeClima]
+    horas: HorasDeOnda
+    avisos: list[AvisoINMET]
+    fontes: list[str]
+
+
+class AvisoDaSemana(BaseModel):
+    assunto: str
+    texto: str
+
+
 class Saida(BaseModel):
     """O que a coordenação fez com o documento. O sistema não sabe se o e-mail foi mesmo enviado."""
     tipo: Literal["documento_impresso", "envio_aberto"]
