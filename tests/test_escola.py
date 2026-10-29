@@ -58,6 +58,22 @@ def test_alunos_so_com_login(cliente):
     assert cliente.get("/v1/alunos", headers=passe(cliente)).status_code == 200
 
 
+def test_professor_ve_so_as_turmas_dele(cliente):
+    turmas = lambda h: {a["turma"] for a in cliente.get("/v1/alunos", headers=h).json()}
+    assert turmas(passe_professor(cliente, "P001")) == {"Turma A"}
+    assert turmas(passe_professor(cliente, "P002")) == {"Turma B"}
+    assert turmas(passe_professor(cliente, "P003")) == {"Turma A", "Turma B"}
+    assert turmas(passe(cliente)) == {"Turma A", "Turma B"}  # a coordenação vê a escola toda
+
+
+def test_aluno_de_outra_turma_403_e_nada_registrado(cliente):
+    # Helena é da Turma A; o A0003 é da Turma B.
+    r = enviar(cliente, "A0003", "Helena Costa", "Relato sobre aluno que não é dela.")
+    assert r.status_code == 403
+    assert cliente.get("/v1/registros", headers=passe(cliente)).json() == []
+    assert cliente.get("/v1/alunos/A0003/acessos", headers=passe(cliente)).json() == []
+
+
 def test_passe_do_professor_nao_abre_a_coordenacao(cliente):
     h = passe_professor(cliente)
     for rota in ["/v1/registros", "/v1/registros/1", "/v1/registros/1/documento", "/v1/alunos/A0001/acessos"]:

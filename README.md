@@ -51,7 +51,7 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
 - O professor não recebe a previsão; ela fica com a coordenação.
 - Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
-- O cadastro dos alunos só abre com login.
+- O cadastro dos alunos só abre com login. O professor vê e envia relato só dos alunos das turmas dele; a coordenação vê a escola toda.
 - O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
 - Trilha de auditoria: cada envio, abertura de ficha, aprovação e documento fica gravado com quem e quando (LGPD, art. 37).
 - O modelo recebe só números acadêmicos, nunca nome ou texto.
@@ -65,7 +65,7 @@ app/
   services.py           inferência e fatores (peso × valor da regressão logística)
   schemas.py            contratos Pydantic com Field (faixas → 422)
   regras.py             limitações, níveis e perguntas, escritos à mão
-  escola.py             SQLite: alunos, professores, coordenação, registros, acessos
+  escola.py             SQLite: alunos, professores e suas turmas, coordenação, registros, acessos
   seguranca.py          hash de senha PBKDF2
   sessoes.py            passes temporários do professor e da coordenação
   indicadores.py        médias por semestre e r de Pearson
@@ -101,7 +101,7 @@ uvicorn app.main:app --reload
 | GET | `/v1/professores`, `/v1/coordenacao` | livre | nomes para o login (sem hash) |
 | POST | `/v1/professores/login` | senha do professor | passe temporário do professor |
 | POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário da coordenação |
-| GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos |
+| GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos (o professor recebe só as turmas dele) |
 | POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
 | GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (abrir a ficha grava o acesso) |
 | POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
@@ -114,7 +114,7 @@ uvicorn app.main:app --reload
 | 200 / 201 | sucesso |
 | 400 | regra de negócio (aprovadas > inscritas, registro já aprovado, documento antes da aprovação) |
 | 401 | senha errada ou sem passe |
-| 403 | passe de outro papel, ou nome da assinatura que não confere |
+| 403 | passe de outro papel, nome da assinatura que não confere, ou aluno fora das turmas do professor |
 | 404 | aluno ou registro inexistente |
 | 422 | tipo ou faixa inválidos (Pydantic) |
 | 500 | modelo não carregado ou falha não prevista |
