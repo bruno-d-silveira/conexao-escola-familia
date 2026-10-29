@@ -46,6 +46,10 @@ class Escola:
             con.execute("""create table if not exists acessos (
                 id integer primary key autoincrement, aluno_id text, registro_id integer,
                 acao text, quem text, em text)""")
+            # Só inclusão: nem a API nem quem abrir o banco consegue alterar ou apagar uma linha da trilha.
+            for operacao in ("update", "delete"):
+                con.execute(f"""create trigger if not exists acessos_sem_{operacao} before {operacao} on acessos
+                    begin select raise(abort, 'A trilha de auditoria só aceita inclusão.'); end""")
             con.execute("""create table if not exists professores (
                 id text primary key, nome text, sal text, senha_hash text)""")
             if con.execute("select count(*) from professores").fetchone()[0] == 0:
@@ -136,7 +140,7 @@ class Escola:
                         "where id = ?", (agora, coordenador, registro_id))
         return self.registro(registro_id)
 
-    def registrar_acesso(self, aluno_id: str, registro_id: int, acao: str, quem: str) -> None:
+    def registrar_acesso(self, aluno_id: str, registro_id: int | None, acao: str, quem: str) -> None:
         agora = datetime.now().isoformat(timespec="seconds")
         with self._con() as con:
             con.execute("insert into acessos (aluno_id, registro_id, acao, quem, em) values (?,?,?,?,?)",

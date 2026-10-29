@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
 from app.schemas import (Acesso, Aluno, DadosEstudante, Documento, LoginCoordenacao, LoginProfessor,
-                         NovoRegistro, PasseCoordenacao, PasseProfessor, Professor, Registro, RegistroEnviado)
+                         NovoRegistro, PasseCoordenacao, PasseProfessor, Professor, Registro, RegistroEnviado,
+                         Saida)
 
 router = APIRouter(prefix="/v1", tags=["escola"])
 
@@ -112,7 +113,12 @@ def registrar(novo: NovoRegistro, request: Request, professor: dict = Depends(pr
 def listar_registros(request: Request, status: str | None = None, quem: dict = Depends(coordenacao_logada)):
     if status not in (None, "aguardando_coordenacao", "aprovado"):
         raise HTTPException(400, "status deve ser 'aguardando_coordenacao' ou 'aprovado'.")
-    return request.app.state.escola.registros(status)
+    escola = request.app.state.escola
+    registros = escola.registros(status)
+    # A fila já mostra o nível de risco de cada aluno: cada um que aparece nela vai para a trilha.
+    for reg in registros:
+        escola.registrar_acesso(reg["aluno_id"], reg["id"], "fila_vista", quem["nome"])
+    return registros
 
 
 @router.get("/registros/{registro_id}", response_model=Registro)
@@ -128,10 +134,16 @@ def abrir_ficha(registro_id: int, request: Request, quem: dict = Depends(coorden
 
 @router.get("/alunos/{aluno_id}/acessos", response_model=list[Acesso])
 def listar_acessos(aluno_id: str, request: Request, quem: dict = Depends(coordenacao_logada)):
-    """Trilha de auditoria do aluno: quem enviou, abriu, aprovou ou gerou documento, e quando."""
-    if request.app.state.escola.aluno(aluno_id) is None:
+    """Trilha de auditoria do aluno: quem enviou, abriu, aprovou ou gerou documento, e quando.
+
+    Ver a trilha também fica gravado; aparece na próxima consulta.
+    """
+    escola = request.app.state.escola
+    if escola.aluno(aluno_id) is None:
         raise HTTPException(404, f"Aluno {aluno_id} não encontrado.")
-    return request.app.state.escola.acessos(aluno_id)
+    trilha = escola.acessos(aluno_id)
+    escola.registrar_acesso(aluno_id, None, "historico_aberto", quem["nome"])
+    return trilha
 
 
 @router.post("/registros/{registro_id}/aprovar", response_model=Registro)
@@ -160,7 +172,7 @@ def documento(registro_id: int, request: Request, modelo: Literal["convite", "co
     if reg["status"] != "aprovado":
         raise HTTPException(400, "O documento só sai depois da aprovação da coordenação.")
     aluno = escola.aluno(reg["aluno_id"])
-    escola.registrar_acesso(reg["aluno_id"], registro_id, "documento_gerado", reg["aprovado_por"])
+    escola.registrar_acesso(reg["aluno_id"], registro_id, "documento_gerado", quem["nome"])
     boletim = ""
     if modelo == "convite_boletim":
         d, f = aluno["dados"], aluno["frequencia"]
@@ -185,3 +197,16 @@ def documento(registro_id: int, request: Request, modelo: Literal["convite", "co
     )
     return Documento(registro_id=registro_id, para=aluno["email_responsavel"],
                      assunto=f"Acompanhamento de {aluno['nome']}", texto=texto)
+
+
+@router.post("/registros/{registro_id}/saida", response_model=Saida, status_code=201)
+def registrar_saida(registro_id: int, saida: Saida, request: Request, quem: dict = Depends(coordenacao_logada)):
+    """A tela avisa quando a coordenação imprime o documento ou abre o e-mail para o responsável."""
+    escola = request.app.state.escola
+    reg = escola.registro(registro_id)
+    if reg is None:
+        raise HTTPException(404, f"Registro {registro_id} não encontrado.")
+    if reg["status"] != "aprovado":
+        raise HTTPException(400, "O documento só sai depois da aprovação da coordenação.")
+    escola.registrar_acesso(reg["aluno_id"], registro_id, saida.tipo, quem["nome"])
+    return saida
