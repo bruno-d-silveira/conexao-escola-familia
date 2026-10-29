@@ -1,5 +1,5 @@
 """Contratos de dados da API (Pydantic): o que entra e o que sai."""
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -120,10 +120,39 @@ class RegistroEnviado(BaseModel):
 
 class Acesso(BaseModel):
     registro_id: int | None = Field(None, description="Vazio quando a ação é sobre o aluno, não sobre um registro")
-    acao: Literal["relatorio_enviado", "fila_vista", "ficha_aberta", "historico_aberto", "aprovado",
-                  "documento_gerado", "documento_impresso", "envio_aberto"]
+    acao: Literal["relatorio_enviado", "fila_vista", "ficha_aberta", "historico_aberto", "boletim_aberto",
+                  "aprovado", "documento_gerado", "documento_impresso", "envio_aberto"]
     quem: str
     em: datetime
+
+
+class DisciplinaBoletim(BaseModel):
+    disciplina: str
+    notas: list[float | None] = Field(..., min_length=10, max_length=10,
+                                      description="Fevereiro a dezembro, sem julho; vazio = mês que ainda não veio")
+    faltas: list[int | None] = Field(..., min_length=10, max_length=10)
+    medias_semestre: list[float | None] = Field(..., min_length=2, max_length=2)
+    media_ano: float | None = Field(None, ge=0, le=10, description="Parcial enquanto o ano não fecha")
+    total_faltas: int = Field(..., ge=0)
+    # Aprovado e recuperação só depois que o ano fecha; antes, só onde a disciplina está em relação à média.
+    situacao: Literal["aprovado", "em recuperação", "acima da média", "abaixo da média", "sem nota"]
+
+
+class Boletim(BaseModel):
+    """O boletim que os pais acompanham: disciplina por disciplina, mês a mês, em dois semestres."""
+    aluno_id: str
+    ano_letivo: int
+    meses: list[str] = Field(..., min_length=10, max_length=10)
+    mes_atual: int | None = Field(None, description="Índice do mês em andamento; vazio se o ano fechou")
+    atualizado_em: date
+    fechado: bool
+    media_aprovacao: float
+    disciplinas: list[DisciplinaBoletim]
+    medias_mes: list[float | None] = Field(..., description="Média geral de cada mês")
+    medias_semestre: list[float | None] = Field(..., min_length=2, max_length=2)
+    frequencia: int = Field(..., ge=0, le=100, description="Frequência no ano até agora (%)")
+    frequencia_minima: int = Field(75, description="Mínimo da LDB (Lei 9.394/1996, art. 24, VI)")
+    fonte: Literal["demo", "diario_de_classe"]
 
 
 class Saida(BaseModel):

@@ -1,14 +1,16 @@
 """Rotas do fluxo da escola: professor registra, coordenação aprova e gera o documento."""
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
-from app.schemas import (Acesso, Aluno, DadosEstudante, Documento, LoginCoordenacao, LoginProfessor,
+from app.schemas import (Acesso, Aluno, Boletim, DadosEstudante, Documento, LoginCoordenacao, LoginProfessor,
                          NovoRegistro, PasseCoordenacao, PasseProfessor, Professor, Registro, RegistroEnviado,
                          Saida)
 
 router = APIRouter(prefix="/v1", tags=["escola"])
+MESES = {"fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
 
 
 def _dono_do_passe(request: Request, authorization: str | None) -> dict | None:
@@ -144,6 +146,45 @@ def listar_acessos(aluno_id: str, request: Request, quem: dict = Depends(coorden
     trilha = escola.acessos(aluno_id)
     escola.registrar_acesso(aluno_id, None, "historico_aberto", quem["nome"])
     return trilha
+
+
+@router.get("/alunos/{aluno_id}/boletim", response_model=Boletim)
+def boletim(aluno_id: str, request: Request, quem: dict = Depends(coordenacao_logada)):
+    """Boletim do ano letivo, mês a mês, em dois semestres. Abrir o boletim também fica na trilha."""
+    escola = request.app.state.escola
+    b = escola.boletim(aluno_id)
+    if b is None:
+        raise HTTPException(404, f"Boletim do aluno {aluno_id} não encontrado.")
+    def media(notas):
+        com_nota = [n for n in notas if n is not None]
+        return round(sum(com_nota) / len(com_nota), 1) if com_nota else None
+
+    semestres = (range(0, 5), range(5, 10))  # fevereiro a junho; agosto a dezembro
+    corte, linha = b["media_aprovacao"], []
+    for d in b["disciplinas"]:
+        m = media(d["notas"])
+        if m is None:
+            situacao = "sem nota"
+        elif b["fechado"]:
+            situacao = "aprovado" if m >= corte else "em recuperação"
+        else:
+            situacao = "acima da média" if m >= corte else "abaixo da média"
+        linha.append({**d, "medias_semestre": [media([d["notas"][i] for i in s]) for s in semestres],
+                      "media_ano": m, "total_faltas": sum(f for f in d["faltas"] if f is not None),
+                      "situacao": situacao})
+    todas = lambda i: [d["notas"][i] for d in b["disciplinas"]]
+    medias_mes = [media(todas(i)) for i in range(10)]
+    medias_semestre = [media([n for i in s for n in todas(i)]) for s in semestres]
+    meses_com_aula = sum(f is not None for f in b["disciplinas"][0]["faltas"])
+    aulas = b["aulas_por_mes"] * meses_com_aula * len(b["disciplinas"])
+    frequencia = round(100 * (1 - sum(d["total_faltas"] for d in linha) / aulas))
+    atualizado = date.fromisoformat(b["atualizado_em"])
+    mes_atual = next((i for i, nome in enumerate(b["meses"]) if MESES[nome] == atualizado.month), None)
+    escola.registrar_acesso(aluno_id, None, "boletim_aberto", quem["nome"])
+    return Boletim(aluno_id=aluno_id, ano_letivo=b["ano_letivo"], meses=b["meses"],
+                   mes_atual=None if b["fechado"] else mes_atual, atualizado_em=atualizado, fechado=b["fechado"],
+                   media_aprovacao=corte, disciplinas=linha, medias_mes=medias_mes,
+                   medias_semestre=medias_semestre, frequencia=frequencia, fonte=b["fonte"])
 
 
 @router.post("/registros/{registro_id}/aprovar", response_model=Registro)

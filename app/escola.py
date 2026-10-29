@@ -10,6 +10,7 @@ from app.seguranca import senha_confere
 ALUNOS_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "alunos_ficticios.json"
 PROFESSORES_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "professores_ficticios.json"
 COORDENACAO_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "coordenacao_ficticia.json"
+BOLETINS_SEMENTE = Path(__file__).resolve().parents[1] / "data" / "boletins_ficticios.json"
 
 
 class Escola:
@@ -63,6 +64,10 @@ class Escola:
                 for p in json.loads(PROFESSORES_SEMENTE.read_text(encoding="utf-8")):
                     for turma in p.get("turmas", []):
                         con.execute("insert into professor_turmas values (?,?)", (p["id"], turma))
+            con.execute("create table if not exists boletins (aluno_id text primary key, boletim text)")
+            if con.execute("select count(*) from boletins").fetchone()[0] == 0:
+                for b in json.loads(BOLETINS_SEMENTE.read_text(encoding="utf-8")):
+                    con.execute("insert into boletins values (?,?)", (b["aluno_id"], json.dumps(b, ensure_ascii=False)))
             con.execute("""create table if not exists coordenacao (
                 id text primary key, nome text, sal text, senha_hash text)""")
             if con.execute("select count(*) from coordenacao").fetchone()[0] == 0:
@@ -109,6 +114,11 @@ class Escola:
         with self._con() as con:
             r = con.execute("select * from alunos where id = ?", (aluno_id,)).fetchone()
         return self._aluno(r) if r else None
+
+    def boletim(self, aluno_id: str) -> dict | None:
+        with self._con() as con:
+            r = con.execute("select boletim from boletins where aluno_id = ?", (aluno_id,)).fetchone()
+        return json.loads(r["boletim"]) if r else None
 
     def novo_registro(self, aluno_id: str, professor: str, acompanhamento: str, predicao: dict) -> dict:
         agora = datetime.now().isoformat(timespec="seconds")

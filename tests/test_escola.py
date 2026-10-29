@@ -186,3 +186,28 @@ def test_trilha_nao_se_altera_nem_se_apaga(cliente, tmp_path):
                 con.execute(sql)
     finally:
         con.close()
+
+
+def test_boletim_so_da_coordenacao(cliente):
+    assert cliente.get("/v1/alunos/A0001/boletim").status_code == 401
+    assert cliente.get("/v1/alunos/A0001/boletim", headers=passe_professor(cliente)).status_code == 403
+    assert cliente.get("/v1/alunos/A9999/boletim", headers=passe(cliente)).status_code == 404
+
+
+def test_boletim_mensal_em_dois_semestres_e_na_trilha(cliente):
+    h = passe(cliente)
+    b = cliente.get("/v1/alunos/A0006/boletim", headers=h).json()
+    assert b["meses"] == ["fev", "mar", "abr", "mai", "jun", "ago", "set", "out", "nov", "dez"]
+    assert len(b["disciplinas"]) == 12 and all(len(d["notas"]) == 10 for d in b["disciplinas"])
+    # O ano não fechou: outubro em andamento, novembro e dezembro ainda vazios.
+    assert not b["fechado"] and b["meses"][b["mes_atual"]] == "out"
+    assert all(d["notas"][8:] == [None, None] for d in b["disciplinas"])
+    for d in b["disciplinas"]:
+        esperado = "acima da média" if d["media_ano"] >= b["media_aprovacao"] else "abaixo da média"
+        assert d["situacao"] == esperado  # aprovado e recuperação só quando o ano fechar
+    assert any(d["situacao"] == "abaixo da média" for d in b["disciplinas"])
+    assert [a["acao"] for a in cliente.get("/v1/alunos/A0006/acessos", headers=h).json()] == ["boletim_aberto"]
+    # Média 0 na base = sem nota registrada: o boletim não inventa nota, só mostra a frequência.
+    sem_nota = cliente.get("/v1/alunos/A0008/boletim", headers=h).json()
+    assert {d["situacao"] for d in sem_nota["disciplinas"]} == {"sem nota"}
+    assert sem_nota["frequencia"] < sem_nota["frequencia_minima"]

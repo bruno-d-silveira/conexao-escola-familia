@@ -15,7 +15,26 @@
   nav { display:flex; gap:8px; padding:12px 20px; }
   nav button { padding:8px 14px; border:1px solid var(--linha); background:var(--cartao); border-radius:6px; cursor:pointer; }
   nav button.ativo { border-color:var(--azul); color:var(--azul); font-weight:600; }
-  main { max-width:900px; margin:0 auto; padding:0 20px 40px; }
+  main { max-width:1140px; margin:0 auto; padding:0 20px 40px; }
+  #professor { max-width:860px; margin:0 auto; }
+  .grade-coord { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:16px; align-items:start; }
+  .caixa { position:sticky; top:12px; }
+  .caso { padding:10px 8px; border-top:1px solid var(--linha); cursor:pointer; font-size:14px; }
+  .caso:first-of-type { border-top:0; } .caso:hover, .caso.ativo { background:#f4f6fb; }
+  .pendente { display:inline-block; min-width:20px; padding:0 6px; border-radius:10px; background:var(--medio);
+              color:#fff; font-size:12px; font-weight:600; text-align:center; }
+  table.boletim { width:100%; border-collapse:collapse; font-size:13px; margin:8px 0; }
+  .boletim th, .boletim td { padding:6px 8px; border-bottom:1px solid var(--linha); text-align:center; }
+  .boletim th:first-child, .boletim td:first-child { text-align:left; }
+  .boletim tfoot td { font-weight:600; }
+  .boletim .aberto { background:#f4f6fb; font-style:italic; }
+  .rolagem { overflow-x:auto; }
+  .tempo { list-style:none; padding:0; margin:8px 0; border-left:2px solid var(--linha); }
+  .tempo li { position:relative; padding:4px 0 10px 16px; font-size:14px; }
+  .tempo li::before { content:""; position:absolute; left:-6px; top:9px; width:10px; height:10px; border-radius:50%;
+                      background:var(--azul); border:2px solid var(--cartao); }
+  .tempo li.chamada { cursor:pointer; } .tempo li.chamada:hover { background:#f4f6fb; }
+  @media (max-width:760px) { .grade-coord { grid-template-columns:1fr; } .caixa { position:static; } }
   .cartao { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:16px; margin:12px 0; }
   label { display:block; font-size:14px; margin:10px 0 4px; }
   select, input, textarea { width:100%; padding:8px; border:1px solid var(--linha); border-radius:6px; font:inherit; }
@@ -98,13 +117,18 @@
       <p id="coord-logada" hidden></p>
       <p id="erro-coord" class="erro"></p>
     </div>
-    <div id="painel-coord" hidden>
-      <div id="kpis" class="kpis"></div>
-      <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
-        <div id="fila"></div></div>
+    <div id="painel-coord" class="grade-coord" hidden>
+      <aside class="cartao caixa"><p><strong>Caixa de casos</strong><br>
+        <span class="suave">alunos com chamada de atenção</span></p>
+        <div id="caixa"></div></aside>
+      <div>
+        <div id="kpis" class="kpis"></div>
+        <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
+          <div id="fila"></div></div>
+        <div id="detalhe"></div>
+        <div id="documento"></div>
+      </div>
     </div>
-    <div id="detalhe"></div>
-    <div id="documento"></div>
   </section>
 </main>
 
@@ -112,6 +136,7 @@
 const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
+let registros = []; // os relatos que a coordenação já carregou: alimentam a fila e a caixa de casos
 let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
 let passeProfessor = null; // o do professor, separado: cada papel abre só a sua parte.
 
@@ -337,6 +362,128 @@ async function carregarFila() {
       <span class="suave">abrir ›</span></div>`;
   }).join("") : `<p class="suave">Nenhum relatório aguardando a coordenação.</p>`;
   $("detalhe").innerHTML = "";
+  registros = todos;
+  mostrarCaixa();
+}
+
+function mostrarCaixa(ativo) {
+  // Um caso por aluno: quantas chamadas de atenção ele já teve e quantas ainda esperam a coordenação.
+  const casos = {};
+  for (const r of registros) {
+    const c = casos[r.aluno_id] ||= { chamadas: 0, pendentes: 0, ultima: r.criado_em };
+    c.chamadas += 1;
+    if (r.status === "aguardando_coordenacao") c.pendentes += 1;
+    if (r.criado_em > c.ultima) c.ultima = r.criado_em;
+  }
+  const ids = Object.keys(casos).sort((x, y) => casos[y].pendentes - casos[x].pendentes || x.localeCompare(y));
+  $("caixa").innerHTML = ids.length ? ids.map((id) => {
+    const a = alunos.find((x) => x.id === id) || { nome: id, turma: "" }, c = casos[id];
+    return `<div class="caso ${id === ativo ? "ativo" : ""}" onclick="abrirAluno('${id}')">
+      <div style="display:flex;justify-content:space-between;gap:8px"><strong>${a.nome}</strong>
+        ${c.pendentes ? `<span class="pendente" title="aguardando a coordenação">${c.pendentes}</span>` : ""}</div>
+      <span class="suave">${id} · ${a.turma} · ${c.chamadas} chamada${c.chamadas > 1 ? "s" : ""}</span></div>`;
+  }).join("") : `<p class="suave">Nenhuma chamada de atenção registrada.</p>`;
+}
+
+async function abrirAluno(id) {
+  // O mapa do aluno: a linha do tempo das chamadas, o boletim do ano e a média de cada bimestre.
+  $("erro-coord").textContent = "";
+  try {
+    const a = alunos.find((x) => x.id === id);
+    const b = await api(`/v1/alunos/${id}/boletim`);
+    const trilha = await api(`/v1/alunos/${id}/acessos`);
+    const chamadas = registros.filter((r) => r.aluno_id === id).sort((x, y) => x.criado_em.localeCompare(y.criado_em));
+    const situacao = { aguardando_coordenacao: "aguardando a coordenação", aprovado: "aprovada pela coordenação" };
+    $("documento").innerHTML = "";
+    $("detalhe").innerHTML = `<div class="cartao">
+      ${ficha(a)}
+      <p><strong>Linha do tempo</strong> <span class="suave">· clique numa chamada para abrir o relato</span></p>
+      <ul class="tempo">
+        <li>Ano letivo de ${b.ano_letivo}${b.fechado ? "" : `, em andamento (atualizado em ${dataBR(b.atualizado_em)})`}:
+          frequência de ${b.frequencia}%, ${b.disciplinas.filter((d) => ["abaixo da média", "em recuperação"].includes(d.situacao)).length}
+          disciplina(s) abaixo da média</li>
+        ${chamadas.map((r) => `<li class="chamada" onclick="abrir(${r.id})">${dataBR(r.criado_em)} · chamada de atenção
+          de ${r.professor} <span class="suave">· ${situacao[r.status]}</span></li>`).join("")}
+      </ul>
+      ${graficoMeses(b)}
+      ${tabelaBoletim(b)}
+      ${historico(trilha)}</div>`;
+    mostrarCaixa(id);
+    $("detalhe").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+const dataBR = (iso) => iso.slice(0, 10).split("-").reverse().join("/");
+const nota10 = (v) => (v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+function graficoMeses(b) {
+  // Uma série só: a média geral de cada mês, em dois blocos de semestre (julho é férias).
+  // O mês em andamento aparece vazado; os meses que ainda não vieram ficam só no eixo.
+  const L = 520, A = 210, m = 40, base = 160, topo = 16, passo = 36, folga = 24;
+  const x = (i) => m + 22 + i * passo + (i >= 5 ? folga : 0), y = (v) => base - (v / 10) * (base - topo);
+  let svg = "";
+  for (const v of [0, 5, 10]) {
+    svg += `<line x1="${m}" x2="${L - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}</text>`;
+  }
+  svg += `<line x1="${m}" x2="${L - 10}" y1="${y(b.media_aprovacao)}" y2="${y(b.media_aprovacao)}" stroke="#9aa0a6" stroke-dasharray="4 4"/>
+    <text x="${L - 10}" y="${y(b.media_aprovacao) - 5}" text-anchor="end" font-size="11" fill="#5f6368">média ${nota10(b.media_aprovacao)}</text>`;
+  for (const s of [[0, 5], [5, 10]]) {
+    const pontos = b.medias_mes.slice(...s).map((v, k) => ({ v, i: s[0] + k })).filter((p) => p.v != null);
+    if (pontos.length > 1) {
+      svg += `<polyline fill="none" stroke="var(--aprov)" stroke-width="2"
+        points="${pontos.map((p) => `${x(p.i)},${y(p.v)}`).join(" ")}"/>`;
+    }
+  }
+  b.medias_mes.forEach((v, i) => {
+    const aberto = i === b.mes_atual;
+    svg += `<text x="${x(i)}" y="${base + 18}" text-anchor="middle" font-size="12"
+      fill="${v == null && !aberto ? "#9aa0a6" : "#1f2328"}">${b.meses[i]}</text>`;
+    if (v == null) return;
+    svg += `<g><title>${b.meses[i]} · média geral ${nota10(v)}${aberto ? " · mês em andamento" : ""}</title>
+      <circle cx="${x(i)}" cy="${y(v)}" r="14" fill="transparent"/>
+      <circle cx="${x(i)}" cy="${y(v)}" r="5" fill="${aberto ? "#fff" : "var(--aprov)"}" stroke="${aberto ? "var(--aprov)" : "#fff"}" stroke-width="2"/></g>`;
+  });
+  const meio = (a, z) => (x(a) + x(z)) / 2;
+  svg += `<text x="${meio(0, 4)}" y="${base + 36}" text-anchor="middle" font-size="11" fill="#5f6368">1º semestre</text>
+    <text x="${meio(5, 9)}" y="${base + 36}" text-anchor="middle" font-size="11" fill="#5f6368">2º semestre</text>`;
+  const vazio = b.medias_mes.some((v) => v != null) ? ""
+    : `<text x="${L / 2}" y="${y(5)}" text-anchor="middle" font-size="13" fill="#5f6368">sem nota registrada no ano</text>`;
+  return `<p><strong>Média geral por mês</strong> <span class="suave">· ${b.ano_letivo}, de 0 a 10${b.fechado ? "" : " · ponto vazado = mês em andamento"}</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:520px" role="img"
+      aria-label="Média geral por mês em ${b.ano_letivo}">${svg}${vazio}</svg>`;
+}
+
+function tabelaBoletim(b) {
+  // O boletim que os pais acompanham, mês a mês, em dois blocos de semestre. É também a tabela do gráfico acima.
+  const cor = { aprovado: "baixo", "acima da média": "baixo", "em recuperação": "medio", "abaixo da média": "medio", "sem nota": "suave" };
+  const celula = (v, i) => (i === b.mes_atual ? `<td class="aberto">${nota10(v)}</td>` : `<td>${nota10(v)}</td>`);
+  const semestre = (n, de, ate) => {
+    const meses = b.meses.slice(de, ate);
+    const ultimo = n === 2;
+    const titulo = `${n}º semestre <span class="suave">· ${meses[0]} a ${meses[meses.length - 1]}${
+      ultimo && !b.fechado ? `, em andamento (atualizado em ${dataBR(b.atualizado_em)})` : ""}</span>`;
+    const linhas = b.disciplinas.map((d) => `<tr><td>${d.disciplina}</td>
+      ${d.notas.slice(de, ate).map((v, k) => celula(v, de + k)).join("")}
+      <td><strong>${nota10(d.medias_semestre[n - 1])}</strong></td>
+      <td>${d.faltas.slice(de, ate).reduce((s, f) => s + (f ?? 0), 0)}</td>
+      ${ultimo ? `<td><strong>${nota10(d.media_ano)}</strong></td><td class="${cor[d.situacao]}">${d.situacao}</td>` : ""}</tr>`).join("");
+    return `<p style="margin-top:16px"><strong>${titulo}</strong></p>
+      <div class="rolagem"><table class="boletim">
+        <thead><tr><th>Disciplina</th>${meses.map((mes, k) => `<th class="${de + k === b.mes_atual ? "aberto" : ""}">${mes}</th>`).join("")}
+          <th>Média</th><th>Faltas</th>${ultimo ? `<th>Ano${b.fechado ? "" : " (parcial)"}</th><th>Situação</th>` : ""}</tr></thead>
+        <tbody>${linhas}</tbody>
+        <tfoot><tr><td>Média geral</td>${b.medias_mes.slice(de, ate).map((v, k) => celula(v, de + k)).join("")}
+          <td>${nota10(b.medias_semestre[n - 1])}</td><td></td>${ultimo ? "<td></td><td></td>" : ""}</tr></tfoot>
+      </table></div>`;
+  };
+  const fonte = b.fonte === "demo" ? "Boletim de demonstração, derivado das médias da base UCI." : "Boletim do diário de classe.";
+  const baixa = b.frequencia < b.frequencia_minima;
+  return `${semestre(1, 0, 5)}${semestre(2, 5, 10)}
+    <p class="${baixa ? "alto" : ""}" style="font-size:14px">Frequência no ano até agora: <strong>${b.frequencia}%</strong>
+      ${baixa ? `(abaixo do mínimo de ${b.frequencia_minima}%)` : ""}</p>
+    <p class="nota">Média para aprovação: ${nota10(b.media_aprovacao)}. Frequência mínima: ${b.frequencia_minima}% (LDB, art. 24).
+      ${b.fechado ? "" : "Aprovação e recuperação só saem quando o ano fecha; até lá, a situação mostra onde a disciplina está em relação à média. "}${fonte}</p>`;
 }
 
 async function dispersao(a) {
@@ -392,7 +539,7 @@ async function abrir(id) {
 
 function historico(trilha) {
   const nomes = { relatorio_enviado: "enviou o relatório", fila_vista: "viu na fila", ficha_aberta: "abriu a ficha",
-                  historico_aberto: "abriu o histórico", aprovado: "aprovou", documento_gerado: "gerou o documento",
+                  historico_aberto: "abriu o histórico", boletim_aberto: "abriu o boletim", aprovado: "aprovou", documento_gerado: "gerou o documento",
                   documento_impresso: "imprimiu o documento", envio_aberto: "abriu o e-mail para o responsável" };
   return `<p style="margin-top:20px"><strong>Histórico de acesso</strong>
       <span class="suave">· quem viu ou mexeu nos dados deste aluno (LGPD, art. 37)</span></p>
