@@ -1,6 +1,7 @@
 """Testes do fluxo da escola: login do professor, registro, aprovação e documento."""
 import re
 import shutil
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,9 +21,9 @@ def cliente(tmp_path, monkeypatch):
         yield c
 
 
-def passe(cliente) -> dict:
+def passe(cliente, coordenador_id="C001") -> dict:
     """Faz o login da coordenação e devolve o cabeçalho com o passe."""
-    r = cliente.post("/v1/coordenacao/login", json={"coordenador_id": "C001", "senha": SENHA_COORD})
+    r = cliente.post("/v1/coordenacao/login", json={"coordenador_id": coordenador_id, "senha": SENHA_COORD})
     return {"Authorization": f"Bearer {r.json()['passe']}"}
 
 
@@ -145,3 +146,43 @@ def test_trilha_de_auditoria_registra_cada_acesso(cliente):
     assert [a["acao"] for a in trilha] == ["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
     # O "quem" vem do login, não de um nome digitado.
     assert [a["quem"] for a in trilha] == ["Prof. Marcos Vieira"] + ["Coord.ª Lúcia Ramos"] * 3
+
+
+def test_trilha_grava_fila_historico_e_saidas_de_quem_fez(cliente):
+    rid = enviar(cliente, "A0003", "Marcos Vieira", "Chegou atrasado três vezes na semana.", professor_id="P002").json()["id"]
+    lucia, paulo = passe(cliente), passe(cliente, "C002")
+    cliente.get("/v1/registros", headers=lucia)
+    cliente.post(f"/v1/registros/{rid}/aprovar", headers=lucia)
+    # Quem gera e imprime é o Paulo: a trilha grava ele, não quem aprovou.
+    cliente.get(f"/v1/registros/{rid}/documento", headers=paulo)
+    for tipo in ["documento_impresso", "envio_aberto"]:
+        assert cliente.post(f"/v1/registros/{rid}/saida", headers=paulo, json={"tipo": tipo}).status_code == 201
+    cliente.get("/v1/alunos/A0003/acessos", headers=lucia)
+    trilha = cliente.get("/v1/alunos/A0003/acessos", headers=lucia).json()
+    assert [(a["acao"], a["quem"]) for a in trilha] == [
+        ("relatorio_enviado", "Prof. Marcos Vieira"), ("fila_vista", "Coord.ª Lúcia Ramos"),
+        ("aprovado", "Coord.ª Lúcia Ramos"), ("documento_gerado", "Coord. Paulo Teixeira"),
+        ("documento_impresso", "Coord. Paulo Teixeira"), ("envio_aberto", "Coord. Paulo Teixeira"),
+        ("historico_aberto", "Coord.ª Lúcia Ramos")]
+    assert trilha[-1]["registro_id"] is None
+
+
+def test_saida_so_da_coordenacao_e_depois_da_aprovacao(cliente):
+    rid = enviar(cliente, "A0008", "Helena Costa", "Faltou às duas últimas provas.").json()["id"]
+    corpo = {"tipo": "documento_impresso"}
+    assert cliente.post(f"/v1/registros/{rid}/saida", json=corpo).status_code == 401
+    assert cliente.post(f"/v1/registros/{rid}/saida", headers=passe_professor(cliente), json=corpo).status_code == 403
+    assert cliente.post(f"/v1/registros/{rid}/saida", headers=passe(cliente), json=corpo).status_code == 400
+    assert cliente.post("/v1/registros/999/saida", headers=passe(cliente), json=corpo).status_code == 404
+    assert cliente.post(f"/v1/registros/{rid}/saida", headers=passe(cliente), json={"tipo": "apagou"}).status_code == 422
+
+
+def test_trilha_nao_se_altera_nem_se_apaga(cliente, tmp_path):
+    enviar(cliente, "A0008", "Helena Costa", "Faltou às duas últimas provas.")
+    con = sqlite3.connect(tmp_path / "data" / "escola.db")
+    try:
+        for sql in ["update acessos set quem = 'outra pessoa'", "delete from acessos"]:
+            with pytest.raises(sqlite3.IntegrityError, match="só aceita inclusão"):
+                con.execute(sql)
+    finally:
+        con.close()
