@@ -19,7 +19,7 @@ Referências de estratégia e formação que inspiraram o fluxo (sem vínculo in
 | Quem | Faz | Vê |
 |---|---|---|
 | Professor (senha) | entra com a senha, escolhe turma e aluno, escreve o relatório e assina com o nome completo | ficha do aluno, aprovação e frequência por semestre |
-| Coordenação (senha) | abre a fila e a caixa de casos, aprova, gera o documento | prioridade, % de evasão, o que mais pesou, dispersão das médias, linha do tempo das chamadas, boletim do ano, histórico de acesso |
+| Coordenação (senha) | abre a fila e a caixa de casos, marca cada chave como solucionada ou descarta, aprova, gera o documento | prioridade (perigo iminente primeiro), % de evasão, o que mais pesou, chaves dos relatos, chaves na escola sem nome, dispersão das médias, linha do tempo das chamadas, boletim do ano, histórico de acesso |
 | Família | recebe o convite para conversar | documento impresso ou e-mail, sem a lista de fatores |
 
 ## Modelo
@@ -47,6 +47,21 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - O boletim mensal por disciplina também é de demonstração: a base só tem médias por semestre, então `gerar_boletins_ficticios.py` deriva as notas e as faltas de cada mês em volta da média, da proporção de aprovadas e da frequência de cada aluno (`"fonte": "demo"`). O ano letivo de 2026 aparece em andamento, atualizado em 29/10/2026.
 - O relatório do professor não entra no cálculo. O risco mostra associação, não causa.
 
+## Motor de chaves
+
+O relato do professor é livre ("saiu batendo cadeiras", "falou em discurso de ódio"). Quando ele chega, o motor (`app/chaves.py`) lê o texto e devolve só o tema da situação, junto com a frase que o disparou. São regras escritas à mão, sem IA, que qualquer pessoa pode ler.
+
+| Gravidade | Chaves |
+|---|---|
+| perigo iminente: o caso vai para o topo da fila | ameaça, arma, fala em se machucar |
+| atenção | conflito físico, discurso de ódio, discurso sombrio, bullying, isolamento, faltas, substâncias, companhias |
+
+- A chave descreve a situação, nunca a pessoa. Dar nome a comportamento é do profissional de saúde mental, que decide e assina.
+- Cada chave fica num banco de chaves, separado do relato, e a coordenação marca como solucionada, reabre ou descarta quando o motor errou. Cada mudança vai para a trilha.
+- O motor não entende negação: "não bateu em ninguém" ainda dispara "conflito físico". Por isso existe o descarte.
+- A vista da escola mostra quantas vezes cada chave apareceu em cada mês, sem nome de aluno e sem relato.
+- O modelo de evasão não lê o relato nem as chaves.
+
 ## Proteção de dados
 
 - Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
@@ -67,7 +82,8 @@ app/
   services.py           inferência e fatores (peso × valor da regressão logística)
   schemas.py            contratos Pydantic com Field (faixas → 422)
   regras.py             limitações, níveis e perguntas, escritos à mão
-  escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, acessos
+  chaves.py             motor de chaves: o tema da situação em cada relato, escrito à mão
+  escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, chaves, acessos
   seguranca.py          hash de senha PBKDF2
   sessoes.py            passes temporários do professor e da coordenação
   indicadores.py        médias por semestre e r de Pearson
@@ -76,7 +92,7 @@ app/
     escola.py           professor, coordenação, registros, documento, acessos
     indicadores.py      /v1/indicadores/medias
 web/index.html          telas do professor e da coordenação (HTML, CSS e JS, sem dependências)
-tests/                  API, fluxo da escola e indicadores
+tests/                  API, fluxo da escola, motor de chaves e indicadores
 gerar_*_ficticios.py    dados de demonstração
 treinar.py              pipeline offline
 ```
@@ -110,6 +126,9 @@ uvicorn app.main:app --reload
 | GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
 | POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
 | GET | `/v1/alunos/{id}/boletim` | passe da coordenação | boletim do ano: notas por mês em dois semestres (fevereiro a junho, agosto a dezembro), médias, faltas e situação (grava o acesso) |
+| GET | `/v1/alunos/{id}/chaves` | passe da coordenação | chaves do aluno com o trecho do relato e a situação (grava o acesso) |
+| POST | `/v1/chaves/{id}/situacao` | passe da coordenação | marca a chave como aberta, solucionada ou descartada (grava na trilha) |
+| GET | `/v1/indicadores/chaves` | passe da coordenação | ocorrências de cada chave por mês letivo, sem nome de aluno |
 | GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
 

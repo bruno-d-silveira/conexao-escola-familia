@@ -5,7 +5,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
-from app.schemas import (Acesso, Aluno, Boletim, DadosEstudante, Documento, LoginCoordenacao, LoginProfessor,
+from app.chaves import CHAVES
+from app.schemas import (Acesso, Aluno, Boletim, ChaveOcorrida, DadosEstudante, MudancaDeSituacao, PainelDeChaves, Documento, LoginCoordenacao, LoginProfessor,
                          NovoRegistro, PasseCoordenacao, PasseProfessor, Professor, Registro, RegistroEnviado,
                          Saida)
 
@@ -42,6 +43,16 @@ def alguem_logado(request: Request, authorization: str | None = Header(None)) ->
     if pessoa is None:
         raise HTTPException(401, "Faça o login para ver os alunos.")
     return pessoa
+
+
+def _com_chaves(escola, registros: list[dict]) -> list[dict]:
+    """Junta a cada relato os temas do banco de chaves e marca o alerta de perigo iminente."""
+    por_registro = escola.chaves_por_registro()
+    for reg in registros:
+        achadas = por_registro.get(reg["id"], [])
+        reg["chaves"] = [CHAVES[c["chave"]][0] for c in achadas]
+        reg["alerta"] = any(c["gravidade"] == "imediata" for c in achadas)
+    return registros
 
 
 def _nome_sem_titulo(nome: str) -> str:
@@ -120,7 +131,7 @@ def listar_registros(request: Request, status: str | None = None, quem: dict = D
     # A fila já mostra o nível de risco de cada aluno: cada um que aparece nela vai para a trilha.
     for reg in registros:
         escola.registrar_acesso(reg["aluno_id"], reg["id"], "fila_vista", quem["nome"])
-    return registros
+    return _com_chaves(escola, registros)
 
 
 @router.get("/registros/{registro_id}", response_model=Registro)
@@ -131,7 +142,41 @@ def abrir_ficha(registro_id: int, request: Request, quem: dict = Depends(coorden
     if reg is None:
         raise HTTPException(404, f"Registro {registro_id} não encontrado.")
     escola.registrar_acesso(reg["aluno_id"], registro_id, "ficha_aberta", quem["nome"])
-    return reg
+    return _com_chaves(escola, [reg])[0]
+
+
+@router.get("/alunos/{aluno_id}/chaves", response_model=list[ChaveOcorrida])
+def chaves_do_aluno(aluno_id: str, request: Request, quem: dict = Depends(coordenacao_logada)):
+    """As chaves do aluno ao longo do tempo, com o trecho do relato e a situação de cada uma."""
+    escola = request.app.state.escola
+    if escola.aluno(aluno_id) is None:
+        raise HTTPException(404, f"Aluno {aluno_id} não encontrado.")
+    escola.registrar_acesso(aluno_id, None, "chaves_vistas", quem["nome"])
+    return escola.chaves_do_aluno(aluno_id)
+
+
+@router.post("/chaves/{chave_id}/situacao", response_model=ChaveOcorrida)
+def mudar_situacao(chave_id: int, mudanca: MudancaDeSituacao, request: Request,
+                   quem: dict = Depends(coordenacao_logada)):
+    """A coordenação marca a situação como solucionada, descarta a chave que o motor errou ou reabre."""
+    escola = request.app.state.escola
+    c = escola.chave(chave_id)
+    if c is None:
+        raise HTTPException(404, f"Chave {chave_id} não encontrada.")
+    escola.registrar_acesso(c["aluno_id"], c["registro_id"], f"chave_{mudanca.situacao}", quem["nome"])
+    return escola.mudar_situacao(chave_id, mudanca.situacao, quem["nome"])
+
+
+@router.get("/indicadores/chaves", response_model=PainelDeChaves)
+def painel_de_chaves(request: Request, ano: int | None = None, quem: dict = Depends(coordenacao_logada)):
+    """A vista da escola: quantas vezes cada chave apareceu em cada mês letivo. Nenhum nome, nenhum relato."""
+    ano = ano or date.today().year
+    contagem = {(r["chave"], r["mes"]): r["n"] for r in request.app.state.escola.contagem_de_chaves(ano)}
+    series = []
+    for chave, (nome, gravidade, _) in CHAVES.items():
+        por_mes = [contagem.get((chave, numero), 0) for numero in MESES.values()]
+        series.append({"chave": chave, "nome": nome, "gravidade": gravidade, "por_mes": por_mes, "total": sum(por_mes)})
+    return PainelDeChaves(ano_letivo=ano, meses=list(MESES), chaves=series)
 
 
 @router.get("/alunos/{aluno_id}/acessos", response_model=list[Acesso])

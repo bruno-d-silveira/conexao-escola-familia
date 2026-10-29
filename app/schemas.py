@@ -109,6 +109,43 @@ class Registro(BaseModel):
     criado_em: datetime
     aprovado_em: datetime | None = None
     aprovado_por: str | None = None
+    chaves: list[str] = Field([], description="Temas que o motor achou no relato (menos os descartados)")
+    alerta: bool = Field(False, description="Alguma chave de perigo iminente: o caso vai para o topo da fila")
+
+
+class ChaveOcorrida(BaseModel):
+    """Uma chave do banco de chaves: o tema, o trecho do relato que a disparou e a situação do caso."""
+    id: int
+    registro_id: int
+    aluno_id: str
+    chave: str
+    nome: str
+    gravidade: Literal["imediata", "atencao"]
+    trecho: str
+    situacao: Literal["aberta", "solucionada", "descartada"]
+    em: datetime
+    professor: str
+    atualizado_por: str | None = None
+    atualizado_em: datetime | None = None
+
+
+class MudancaDeSituacao(BaseModel):
+    """Descartada = o motor errou (por exemplo, uma negação que ele não entendeu)."""
+    situacao: Literal["aberta", "solucionada", "descartada"]
+
+
+class SerieDeChave(BaseModel):
+    chave: str
+    nome: str
+    gravidade: Literal["imediata", "atencao"]
+    por_mes: list[int] = Field(..., description="Ocorrências em cada mês letivo, sem nome de aluno")
+    total: int
+
+
+class PainelDeChaves(BaseModel):
+    ano_letivo: int
+    meses: list[str]
+    chaves: list[SerieDeChave]
 
 
 class RegistroEnviado(BaseModel):
@@ -121,6 +158,7 @@ class RegistroEnviado(BaseModel):
 class Acesso(BaseModel):
     registro_id: int | None = Field(None, description="Vazio quando a ação é sobre o aluno, não sobre um registro")
     acao: Literal["relatorio_enviado", "fila_vista", "ficha_aberta", "historico_aberto", "boletim_aberto",
+                  "chaves_vistas", "chave_solucionada", "chave_descartada", "chave_aberta",
                   "aprovado", "documento_gerado", "documento_impresso", "envio_aberto"]
     quem: str
     em: datetime
