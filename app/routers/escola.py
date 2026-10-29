@@ -4,23 +4,53 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.routers.predicao import checar_coerencia
-from app.schemas import (Acesso, Aluno, DadosEstudante, Documento, LoginCoordenacao, NovoRegistro,
-                         PasseCoordenacao, Professor, Registro, RegistroEnviado)
+from app.schemas import (Acesso, Aluno, DadosEstudante, Documento, LoginCoordenacao, LoginProfessor,
+                         NovoRegistro, PasseCoordenacao, PasseProfessor, Professor, Registro, RegistroEnviado)
 
 router = APIRouter(prefix="/v1", tags=["escola"])
 
 
-def coordenacao_logada(request: Request, authorization: str | None = Header(None)) -> dict:
-    """Só a coordenação logada passa. O passe vem no cabeçalho: Authorization: Bearer <passe>."""
+def _dono_do_passe(request: Request, authorization: str | None) -> dict | None:
+    """O passe vem no cabeçalho: Authorization: Bearer <passe>. Devolve a pessoa e o papel dela."""
     passe = (authorization or "").removeprefix("Bearer ").strip()
-    pessoa = request.app.state.sessoes.quem(passe) if passe else None
+    return request.app.state.sessoes.quem(passe) if passe else None
+
+
+def coordenacao_logada(request: Request, authorization: str | None = Header(None)) -> dict:
+    """Só a coordenação logada passa. Passe de professor não abre estas rotas."""
+    pessoa = _dono_do_passe(request, authorization)
     if pessoa is None:
         raise HTTPException(401, "Faça o login da coordenação.")
+    if pessoa["papel"] != "coordenacao":
+        raise HTTPException(403, "Só a coordenação tem acesso a esta parte.")
     return pessoa
 
 
+def professor_logado(request: Request, authorization: str | None = Header(None)) -> dict:
+    pessoa = _dono_do_passe(request, authorization)
+    if pessoa is None or pessoa["papel"] != "professor":
+        raise HTTPException(401, "Faça o login do professor.")
+    return pessoa
+
+
+def alguem_logado(request: Request, authorization: str | None = Header(None)) -> dict:
+    """Professor ou coordenação: o cadastro dos alunos não fica aberto para quem não entrou."""
+    pessoa = _dono_do_passe(request, authorization)
+    if pessoa is None:
+        raise HTTPException(401, "Faça o login para ver os alunos.")
+    return pessoa
+
+
+def _nome_sem_titulo(nome: str) -> str:
+    """Compara nomes sem ligar para maiúscula, espaço sobrando ou o título (Prof., Prof.ª)."""
+    partes = nome.casefold().split()
+    if partes and partes[0].startswith("prof"):
+        partes = partes[1:]
+    return " ".join(partes)
+
+
 @router.get("/alunos", response_model=list[Aluno])
-def listar_alunos(request: Request):
+def listar_alunos(request: Request, quem: dict = Depends(alguem_logado)):
     return request.app.state.escola.alunos()
 
 
@@ -39,17 +69,25 @@ def login_coordenacao(login: LoginCoordenacao, request: Request):
     pessoa = request.app.state.escola.autenticar_coordenacao(login.coordenador_id, login.senha)
     if pessoa is None:
         raise HTTPException(401, "Coordenação ou senha incorretas.")
-    passe, expira = request.app.state.sessoes.abrir(pessoa)
+    passe, expira = request.app.state.sessoes.abrir({**pessoa, "papel": "coordenacao"})
     return PasseCoordenacao(passe=passe, nome=pessoa["nome"], expira_em=expira)
 
 
-@router.post("/registros", response_model=RegistroEnviado, status_code=201)
-def registrar(novo: NovoRegistro, request: Request):
-    """O professor confirma a senha e escreve o acompanhamento; a previsão é feita e tudo vai para o log."""
-    professor = request.app.state.escola.autenticar(novo.professor_id, novo.senha)
-    if professor is None:
+@router.post("/professores/login", response_model=PasseProfessor)
+def login_professor(login: LoginProfessor, request: Request):
+    pessoa = request.app.state.escola.autenticar(login.professor_id, login.senha)
+    if pessoa is None:
         # Mesma resposta para professor inexistente e senha errada: não revela quem existe.
         raise HTTPException(401, "Professor ou senha incorretos.")
+    passe, expira = request.app.state.sessoes.abrir({**pessoa, "papel": "professor"})
+    return PasseProfessor(passe=passe, nome=pessoa["nome"], expira_em=expira)
+
+
+@router.post("/registros", response_model=RegistroEnviado, status_code=201)
+def registrar(novo: NovoRegistro, request: Request, professor: dict = Depends(professor_logado)):
+    """O professor entrou com a senha, escreve o acompanhamento e assina com o nome completo."""
+    if _nome_sem_titulo(novo.nome_completo) != _nome_sem_titulo(professor["nome"]):
+        raise HTTPException(403, "O nome digitado não confere com o professor que entrou. Nada foi enviado.")
     aluno = request.app.state.escola.aluno(novo.aluno_id)
     if aluno is None:
         raise HTTPException(404, f"Aluno {novo.aluno_id} não encontrado.")

@@ -61,18 +61,26 @@
 <main>
   <section id="professor">
     <div class="cartao">
-      <label for="professor-id">Professor(a)</label>
-      <select id="professor-id"></select>
-      <label for="turma">Turma</label>
-      <select id="turma"></select>
-      <label for="aluno">Aluno (nº de cadastro)</label>
-      <select id="aluno"></select>
-      <div id="painel-aluno"></div>
-      <label for="acompanhamento">O que você tem observado</label>
-      <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
-      <label for="senha">Sua senha (confirma o envio)</label>
-      <input id="senha" type="password" autocomplete="current-password">
-      <button class="acao" onclick="registrar()">Enviar relatório</button>
+      <div id="login-prof">
+        <label for="professor-id">Professor(a)</label>
+        <select id="professor-id"></select>
+        <label for="senha">Senha</label>
+        <input id="senha" type="password" autocomplete="current-password">
+        <button class="acao" onclick="entrarProfessor()">Entrar</button>
+      </div>
+      <p id="prof-logado" hidden></p>
+      <div id="painel-prof" hidden>
+        <label for="turma">Turma</label>
+        <select id="turma"></select>
+        <label for="aluno">Aluno (nº de cadastro)</label>
+        <select id="aluno"></select>
+        <div id="painel-aluno"></div>
+        <label for="acompanhamento">O que você tem observado</label>
+        <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
+        <label for="nome-completo">Seu nome completo (assina o envio)</label>
+        <input id="nome-completo" autocomplete="off">
+        <button class="acao" onclick="registrar()">Enviar à coordenação</button>
+      </div>
       <p id="erro-professor" class="erro"></p>
     </div>
     <div id="resultado"></div>
@@ -105,6 +113,7 @@ const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
 let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
+let passeProfessor = null; // o do professor, separado: cada papel abre só a sua parte.
 
 function aba(nome) {
   for (const n of ["professor", "coordenacao"]) {
@@ -114,9 +123,9 @@ function aba(nome) {
   if (nome === "coordenacao" && passe) carregarFila();
 }
 
-async function api(caminho, opcoes = {}) {
+async function api(caminho, opcoes = {}, chave = passe) {
   const headers = { "Content-Type": "application/json" };
-  if (passe) headers.Authorization = `Bearer ${passe}`;
+  if (chave) headers.Authorization = `Bearer ${chave}`;
   const r = await fetch(caminho, { headers, ...opcoes });
   const corpo = await r.json();
   if (!r.ok) {
@@ -131,7 +140,11 @@ async function carregarCadastros() {
   $("coord-id").innerHTML = coordenacao.map((c) => `<option value="${c.id}">${c.nome}</option>`).join("");
   const professores = await api("/v1/professores");
   $("professor-id").innerHTML = professores.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
-  alunos = await api("/v1/alunos");
+}
+
+async function carregarAlunos(chave) {
+  // O cadastro dos alunos só vem depois do login, com o passe de quem entrou.
+  alunos = await api("/v1/alunos", {}, chave);
   const turmas = [...new Set(alunos.map((a) => a.turma))].sort();
   $("turma").innerHTML = turmas.map((t) => `<option>${t}</option>`).join("");
   $("turma").onchange = mostrarAlunosDaTurma;
@@ -245,13 +258,37 @@ function cartaoPredicao(p, a) {
     <ul>${p.perguntas_para_conversa.map((q) => `<li>${q}</li>`).join("")}</ul>`;
 }
 
+async function entrarProfessor() {
+  $("erro-professor").textContent = "";
+  try {
+    const r = await api("/v1/professores/login", { method: "POST", body: JSON.stringify({
+      professor_id: $("professor-id").value, senha: $("senha").value }) }, null);
+    passeProfessor = r.passe;
+    $("senha").value = "";
+    await carregarAlunos(passeProfessor);
+    $("login-prof").hidden = true;
+    $("prof-logado").hidden = false;
+    $("prof-logado").innerHTML = `Entrou como <strong>${r.nome}</strong>
+      <a href="#" onclick="sairProfessor(); return false" class="suave" style="margin-left:8px">sair</a>`;
+    $("painel-prof").hidden = false;
+  } catch (e) { $("erro-professor").textContent = e.message; }
+}
+
+function sairProfessor() {
+  passeProfessor = null;
+  $("login-prof").hidden = false;
+  $("prof-logado").hidden = true;
+  $("painel-prof").hidden = true;
+  for (const id of ["painel-aluno", "resultado"]) $(id).innerHTML = "";
+}
+
 async function registrar() {
   $("erro-professor").textContent = "";
   try {
     const reg = await api("/v1/registros", { method: "POST", body: JSON.stringify({
-      aluno_id: $("aluno").value, professor_id: $("professor-id").value, senha: $("senha").value,
-      acompanhamento: $("acompanhamento").value }) });
-    $("senha").value = "";
+      aluno_id: $("aluno").value, nome_completo: $("nome-completo").value,
+      acompanhamento: $("acompanhamento").value }) }, passeProfessor);
+    $("nome-completo").value = "";
     $("acompanhamento").value = "";
     $("resultado").innerHTML = `<div class="cartao"><p>${reg.mensagem} Registro nº ${reg.id}.</p></div>`;
   } catch (e) { $("erro-professor").textContent = e.message; }
@@ -264,6 +301,7 @@ async function entrarCoordenacao() {
       coordenador_id: $("coord-id").value, senha: $("coord-senha").value }) });
     passe = r.passe;
     $("coord-senha").value = "";
+    await carregarAlunos(passe);
     $("login-coord").hidden = true;
     $("coord-logada").hidden = false;
     $("coord-logada").innerHTML = `Entrou como <strong>${r.nome}</strong>
