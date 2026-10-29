@@ -19,7 +19,7 @@ Referências de estratégia e formação que inspiraram o fluxo (sem vínculo in
 | Quem | Faz | Vê |
 |---|---|---|
 | Professor (senha) | entra com a senha, escolhe turma e aluno, escreve o relatório e assina com o nome completo | ficha do aluno, aprovação e frequência por semestre |
-| Coordenação (senha) | abre a fila, aprova, gera o documento | prioridade, % de evasão, o que mais pesou, dispersão das médias, histórico de acesso |
+| Coordenação (senha) | abre a fila e a caixa de casos, aprova, gera o documento | prioridade, % de evasão, o que mais pesou, dispersão das médias, linha do tempo das chamadas, boletim do ano, histórico de acesso |
 | Família | recebe o convite para conversar | documento impresso ou e-mail, sem a lista de fatores |
 
 ## Modelo
@@ -44,6 +44,7 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - Média 0 na base significa sem nota registrada no semestre, não nota zero.
 - Frequência e situação da matrícula não existem na base: na demonstração são inventadas (`"fonte": "demo"`); numa escola, vêm do diário de classe e da secretaria.
 - Os alunos da demonstração são linhas anônimas da base, filtradas para 17 a 20 anos (os mais velhos são outliers para o público do projeto). O modelo é treinado com a base inteira.
+- O boletim mensal por disciplina também é de demonstração: a base só tem médias por semestre, então `gerar_boletins_ficticios.py` deriva as notas e as faltas de cada mês em volta da média, da proporção de aprovadas e da frequência de cada aluno (`"fonte": "demo"`). O ano letivo de 2026 aparece em andamento, atualizado em 29/10/2026.
 - O relatório do professor não entra no cálculo. O risco mostra associação, não causa.
 
 ## Proteção de dados
@@ -53,7 +54,7 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
 - O cadastro dos alunos só abre com login. O professor vê e envia relato só dos alunos das turmas dele; a coordenação vê a escola toda.
 - O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
-- Trilha de auditoria (LGPD, art. 37): fica gravado, com quem e quando, cada envio, cada aluno que aparece na fila, cada abertura de ficha e de histórico, cada aprovação, cada documento gerado e cada vez que a coordenação imprime o documento ou abre o e-mail para o responsável. O "quem" vem sempre do login.
+- Trilha de auditoria (LGPD, art. 37): fica gravado, com quem e quando, cada envio, cada aluno que aparece na fila, cada abertura de ficha, de histórico e de boletim, cada aprovação, cada documento gerado e cada vez que a coordenação imprime o documento ou abre o e-mail para o responsável. O "quem" vem sempre do login.
 - A trilha só aceita inclusão: gatilhos no SQLite barram alterar ou apagar uma linha, mesmo fora da API.
 - O modelo recebe só números acadêmicos, nunca nome ou texto.
 - Todos os nomes, e-mails e senhas são fictícios. O banco `data/escola.db` não vai para o repositório.
@@ -66,7 +67,7 @@ app/
   services.py           inferência e fatores (peso × valor da regressão logística)
   schemas.py            contratos Pydantic com Field (faixas → 422)
   regras.py             limitações, níveis e perguntas, escritos à mão
-  escola.py             SQLite: alunos, professores e suas turmas, coordenação, registros, acessos
+  escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, acessos
   seguranca.py          hash de senha PBKDF2
   sessoes.py            passes temporários do professor e da coordenação
   indicadores.py        médias por semestre e r de Pearson
@@ -108,6 +109,7 @@ uvicorn app.main:app --reload
 | POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
 | GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
 | POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
+| GET | `/v1/alunos/{id}/boletim` | passe da coordenação | boletim do ano: notas por mês em dois semestres (fevereiro a junho, agosto a dezembro), médias, faltas e situação (grava o acesso) |
 | GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
 
