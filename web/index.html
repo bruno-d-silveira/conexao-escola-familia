@@ -15,7 +15,47 @@
   nav { display:flex; gap:8px; padding:12px 20px; }
   nav button { padding:8px 14px; border:1px solid var(--linha); background:var(--cartao); border-radius:6px; cursor:pointer; }
   nav button.ativo { border-color:var(--azul); color:var(--azul); font-weight:600; }
-  main { max-width:900px; margin:0 auto; padding:0 20px 40px; }
+  main { max-width:1140px; margin:0 auto; padding:0 20px 40px; }
+  #professor { max-width:860px; margin:0 auto; }
+  .grade-coord { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:16px; align-items:start; }
+  .caixa { position:sticky; top:12px; }
+  .caso { padding:10px 8px; border-top:1px solid var(--linha); cursor:pointer; font-size:14px; }
+  .caso:first-of-type { border-top:0; } .caso:hover, .caso.ativo { background:#f4f6fb; }
+  .pendente { display:inline-block; min-width:20px; padding:0 6px; border-radius:10px; background:var(--medio);
+              color:#fff; font-size:12px; font-weight:600; text-align:center; }
+  table.boletim { width:100%; border-collapse:collapse; font-size:13px; margin:8px 0; }
+  .boletim th, .boletim td { padding:6px 8px; border-bottom:1px solid var(--linha); text-align:center; }
+  .boletim th:first-child, .boletim td:first-child { text-align:left; }
+  .boletim tfoot td { font-weight:600; }
+  .boletim .aberto { background:#f4f6fb; font-style:italic; }
+  .alerta { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px; background:#fdecea;
+            color:var(--alto); font-size:12px; font-weight:600; }
+  .chip { display:inline-block; margin:4px 4px 0 0; padding:1px 8px; border:1px solid var(--linha); border-radius:10px;
+          font-size:12px; color:var(--suave); }
+  .multiplos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
+  .quadro { border:1px solid var(--linha); border-radius:8px; padding:8px 10px; font-size:13px; }
+  .quadro.imediata { border-left:3px solid var(--alto); }
+  :root { --mar:#1f5fbf; --praia:#e8833a; }
+  .nivel-clima { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; color:#fff; }
+  .nivel-clima.normal { background:var(--baixo); } .nivel-clima.atencao { background:var(--medio); }
+  .nivel-clima.alerta { background:var(--alto); }
+  .resumo-clima { font-size:18px; font-weight:600; margin:10px 0; }
+  .lista-dias { border-top:1px solid var(--linha); margin:8px 0; }
+  .linha-dia { display:grid; grid-template-columns:minmax(150px, 1.4fr) 70px 40px 90px minmax(0, 2fr); gap:8px;
+               align-items:center; padding:6px 4px; border-bottom:1px solid var(--linha); font-size:14px; }
+  .linha-dia.atencao { background:#fff8ec; } .linha-dia.alerta { background:#fdecea; }
+  .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:12px 0; }
+  .tile { border:1px solid var(--linha); border-radius:10px; padding:8px 10px; font-size:13px; }
+  .tile small { display:block; color:var(--suave); } .tile b { display:block; font-size:22px; }
+  @media (max-width:760px) { .linha-dia { grid-template-columns:1fr 60px 34px 70px; } .linha-dia > :last-child { grid-column:1 / -1; } }
+  button.acao.secundaria { background:var(--cartao); color:var(--azul); border:1px solid var(--azul); }
+  .rolagem { overflow-x:auto; }
+  .tempo { list-style:none; padding:0; margin:8px 0; border-left:2px solid var(--linha); }
+  .tempo li { position:relative; padding:4px 0 10px 16px; font-size:14px; }
+  .tempo li::before { content:""; position:absolute; left:-6px; top:9px; width:10px; height:10px; border-radius:50%;
+                      background:var(--azul); border:2px solid var(--cartao); }
+  .tempo li.chamada { cursor:pointer; } .tempo li.chamada:hover { background:#f4f6fb; }
+  @media (max-width:760px) { .grade-coord { grid-template-columns:1fr; } .caixa { position:static; } }
   .cartao { background:var(--cartao); border:1px solid var(--linha); border-radius:10px; padding:16px; margin:12px 0; }
   label { display:block; font-size:14px; margin:10px 0 4px; }
   select, input, textarea { width:100%; padding:8px; border:1px solid var(--linha); border-radius:6px; font:inherit; }
@@ -61,18 +101,26 @@
 <main>
   <section id="professor">
     <div class="cartao">
-      <label for="professor-id">Professor(a)</label>
-      <select id="professor-id"></select>
-      <label for="turma">Turma</label>
-      <select id="turma"></select>
-      <label for="aluno">Aluno (nº de cadastro)</label>
-      <select id="aluno"></select>
-      <div id="painel-aluno"></div>
-      <label for="acompanhamento">O que você tem observado</label>
-      <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
-      <label for="senha">Sua senha (confirma o envio)</label>
-      <input id="senha" type="password" autocomplete="current-password">
-      <button class="acao" onclick="registrar()">Enviar relatório</button>
+      <div id="login-prof">
+        <label for="professor-id">Professor(a)</label>
+        <select id="professor-id"></select>
+        <label for="senha">Senha</label>
+        <input id="senha" type="password" autocomplete="current-password">
+        <button class="acao" onclick="entrarProfessor()">Entrar</button>
+      </div>
+      <p id="prof-logado" hidden></p>
+      <div id="painel-prof" hidden>
+        <label for="turma">Turma</label>
+        <select id="turma"></select>
+        <label for="aluno">Aluno (nº de cadastro)</label>
+        <select id="aluno"></select>
+        <div id="painel-aluno"></div>
+        <label for="acompanhamento">O que você tem observado</label>
+        <textarea id="acompanhamento" placeholder="Ex.: chega cansado, faltou às duas últimas provas, isolado no intervalo..."></textarea>
+        <label for="nome-completo">Seu nome completo (assina o envio)</label>
+        <input id="nome-completo" autocomplete="off">
+        <button class="acao" onclick="registrar()">Enviar à coordenação</button>
+      </div>
       <p id="erro-professor" class="erro"></p>
     </div>
     <div id="resultado"></div>
@@ -90,13 +138,20 @@
       <p id="coord-logada" hidden></p>
       <p id="erro-coord" class="erro"></p>
     </div>
-    <div id="painel-coord" hidden>
-      <div id="kpis" class="kpis"></div>
-      <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
-        <div id="fila"></div></div>
+    <div id="painel-coord" class="grade-coord" hidden>
+      <aside class="cartao caixa"><p><strong>Caixa de casos</strong><br>
+        <span class="suave">alunos com chamada de atenção</span></p>
+        <div id="caixa"></div></aside>
+      <div>
+        <div class="cartao" id="painel-clima"><p class="suave">Buscando a previsão de mar e chuva…</p></div>
+        <div id="kpis" class="kpis"></div>
+        <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
+          <div id="fila"></div></div>
+        <div class="cartao" id="painel-chaves"></div>
+        <div id="detalhe"></div>
+        <div id="documento"></div>
+      </div>
     </div>
-    <div id="detalhe"></div>
-    <div id="documento"></div>
   </section>
 </main>
 
@@ -104,7 +159,11 @@
 const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
+let registros = [];
+let climaAtual = null; // a última previsão carregada, reaproveitada no aviso da semana
+let chavesDoAluno = []; // o banco de chaves do aluno aberto no mapa // os relatos que a coordenação já carregou: alimentam a fila e a caixa de casos
 let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
+let passeProfessor = null; // o do professor, separado: cada papel abre só a sua parte.
 
 function aba(nome) {
   for (const n of ["professor", "coordenacao"]) {
@@ -114,9 +173,9 @@ function aba(nome) {
   if (nome === "coordenacao" && passe) carregarFila();
 }
 
-async function api(caminho, opcoes = {}) {
+async function api(caminho, opcoes = {}, chave = passe) {
   const headers = { "Content-Type": "application/json" };
-  if (passe) headers.Authorization = `Bearer ${passe}`;
+  if (chave) headers.Authorization = `Bearer ${chave}`;
   const r = await fetch(caminho, { headers, ...opcoes });
   const corpo = await r.json();
   if (!r.ok) {
@@ -131,7 +190,11 @@ async function carregarCadastros() {
   $("coord-id").innerHTML = coordenacao.map((c) => `<option value="${c.id}">${c.nome}</option>`).join("");
   const professores = await api("/v1/professores");
   $("professor-id").innerHTML = professores.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
-  alunos = await api("/v1/alunos");
+}
+
+async function carregarAlunos(chave) {
+  // O cadastro dos alunos só vem depois do login, com o passe de quem entrou.
+  alunos = await api("/v1/alunos", {}, chave);
   const turmas = [...new Set(alunos.map((a) => a.turma))].sort();
   $("turma").innerHTML = turmas.map((t) => `<option>${t}</option>`).join("");
   $("turma").onchange = mostrarAlunosDaTurma;
@@ -245,13 +308,37 @@ function cartaoPredicao(p, a) {
     <ul>${p.perguntas_para_conversa.map((q) => `<li>${q}</li>`).join("")}</ul>`;
 }
 
+async function entrarProfessor() {
+  $("erro-professor").textContent = "";
+  try {
+    const r = await api("/v1/professores/login", { method: "POST", body: JSON.stringify({
+      professor_id: $("professor-id").value, senha: $("senha").value }) }, null);
+    passeProfessor = r.passe;
+    $("senha").value = "";
+    await carregarAlunos(passeProfessor);
+    $("login-prof").hidden = true;
+    $("prof-logado").hidden = false;
+    $("prof-logado").innerHTML = `Entrou como <strong>${r.nome}</strong>
+      <a href="#" onclick="sairProfessor(); return false" class="suave" style="margin-left:8px">sair</a>`;
+    $("painel-prof").hidden = false;
+  } catch (e) { $("erro-professor").textContent = e.message; }
+}
+
+function sairProfessor() {
+  passeProfessor = null;
+  $("login-prof").hidden = false;
+  $("prof-logado").hidden = true;
+  $("painel-prof").hidden = true;
+  for (const id of ["painel-aluno", "resultado"]) $(id).innerHTML = "";
+}
+
 async function registrar() {
   $("erro-professor").textContent = "";
   try {
     const reg = await api("/v1/registros", { method: "POST", body: JSON.stringify({
-      aluno_id: $("aluno").value, professor_id: $("professor-id").value, senha: $("senha").value,
-      acompanhamento: $("acompanhamento").value }) });
-    $("senha").value = "";
+      aluno_id: $("aluno").value, nome_completo: $("nome-completo").value,
+      acompanhamento: $("acompanhamento").value }) }, passeProfessor);
+    $("nome-completo").value = "";
     $("acompanhamento").value = "";
     $("resultado").innerHTML = `<div class="cartao"><p>${reg.mensagem} Registro nº ${reg.id}.</p></div>`;
   } catch (e) { $("erro-professor").textContent = e.message; }
@@ -264,12 +351,14 @@ async function entrarCoordenacao() {
       coordenador_id: $("coord-id").value, senha: $("coord-senha").value }) });
     passe = r.passe;
     $("coord-senha").value = "";
+    await carregarAlunos(passe);
     $("login-coord").hidden = true;
     $("coord-logada").hidden = false;
     $("coord-logada").innerHTML = `Entrou como <strong>${r.nome}</strong>
       <a href="#" onclick="sairCoordenacao(); return false" class="suave" style="margin-left:8px">sair</a>`;
     $("painel-coord").hidden = false;
     carregarFila();
+    carregarClima();
   } catch (e) { $("erro-coord").textContent = e.message; }
 }
 
@@ -282,10 +371,11 @@ function sairCoordenacao() {
 }
 
 async function carregarFila() {
-  // Prioridade: o risco do modelo, do maior para o menor. Quem decide o que fazer é a coordenação.
+  // Prioridade: primeiro o perigo iminente que o motor de chaves achou no relato; depois o risco do modelo,
+  // do maior para o menor. Quem decide o que fazer é a coordenação.
   const todos = await api("/v1/registros");
   const fila = todos.filter((r) => r.status === "aguardando_coordenacao")
-    .sort((x, y) => y.predicao.risco_evasao - x.predicao.risco_evasao);
+    .sort((x, y) => y.alerta - x.alerta || y.predicao.risco_evasao - x.predicao.risco_evasao);
   $("kpis").innerHTML = `
     <div class="kpi"><b>${fila.length}</b><span>pendências</span></div>
     <div class="kpi"><b class="alto">${fila.filter((r) => r.predicao.nivel === "alto").length}</b><span>prioridade alta</span></div>
@@ -294,11 +384,343 @@ async function carregarFila() {
     const a = alunos.find((x) => x.id === r.aluno_id) || { nome: r.aluno_id, turma: "" };
     return `<div class="linha" onclick="abrir(${r.id})">
       <span class="nivel ${r.predicao.nivel}">${r.predicao.nivel}</span>
-      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span><br>
-        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span></span>
+      <span><strong>${a.id} · ${a.nome}</strong> <span class="suave">· ${a.turma}</span>
+        ${r.alerta ? `<span class="alerta">⚠ perigo iminente</span>` : ""}<br>
+        <span class="suave">${r.professor} · ${r.criado_em.replace("T", " ")}</span>
+        ${r.chaves.map((c) => `<span class="chip">${c}</span>`).join("")}</span>
       <span class="suave">abrir ›</span></div>`;
   }).join("") : `<p class="suave">Nenhum relatório aguardando a coordenação.</p>`;
   $("detalhe").innerHTML = "";
+  registros = todos;
+  mostrarCaixa();
+  $("painel-chaves").innerHTML = painelDaEscola(await api("/v1/indicadores/chaves"));
+}
+
+async function carregarClima(atualizar = false) {
+  // Mar e chuva da semana: a regra do swell de sul com chuva forte acende o alerta até 2 dias antes.
+  try {
+    const c = await api(`/v1/clima${atualizar ? "?atualizar=true" : ""}`);
+    $("painel-clima").innerHTML = painelDoClima(c);
+  } catch (e) {
+    $("painel-clima").innerHTML = `<p class="suave">${e.message}</p>`;
+  }
+}
+
+function painelDoClima(c) {
+  // No jeito do app de clima do celular: uma frase no topo, a lista dos dias, o mar de hoje e as fontes embaixo.
+  // O nível vem só dos avisos do INMET.
+  climaAtual = c;
+  const avisos = c.avisos.length ? `<p style="margin-top:12px"><strong>Avisos do INMET</strong></p>${c.avisos.map((a) =>
+    `<p class="suave" style="margin:4px 0">${a.descricao} · <strong>${a.severidade}</strong> · ${dataBR(a.inicio)} ${a.inicio.slice(11, 16)}
+      a ${dataBR(a.fim)} ${a.fim.slice(11, 16)}<br>${a.riscos[0] || ""}</p>`).join("")}` : "";
+  return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+      <p style="margin:0"><strong>Mar e chuva</strong> <span class="suave">· Florianópolis</span>
+        ${c.nivel !== "normal" ? `<span class="nivel-clima ${c.nivel}">${NIVEL_CLIMA[c.nivel]}</span>` : ""}</p>
+      <a class="suave" href="#" onclick="carregarClima(true); return false">atualizar</a></div>
+    <p class="resumo-clima">${c.resumo}</p>
+    ${listaDeDias(c.dias)}
+    ${marDeHoje(c.dias[0])}
+    ${graficoOndas(c.horas)}
+    ${avisos}
+    <p class="nota">Fontes: ${c.fontes.join(" · ")} · Atual. ${dataBR(c.atualizado_em)} ${c.atualizado_em.slice(11, 16)}</p>
+    <button class="acao" onclick="gerarAvisoDaSemana()">Aviso da semana</button>
+    <div id="aviso-semana"></div>`;
+}
+
+const NIVEL_CLIMA = { normal: "normal", atencao: "atenção", alerta: "alerta" };
+const umaCasa = (v, casas = 1) => (v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
+
+function listaDeDias(dias) {
+  // Uma linha por dia: Hoje, Amanhã, sábado…; chance de chuva, o tempo, máxima e mínima, e o aviso, se houver.
+  return `<div class="lista-dias">${dias.map((d) => `<div class="linha-dia ${d.nivel}"
+      title="${d.chuva_mm == null ? "" : `${umaCasa(d.chuva_mm, 0)} mm de chuva`}">
+      <span><strong>${d.rotulo}</strong> <span class="suave">${d.data.slice(8, 10)}/${d.data.slice(5, 7)}</span></span>
+      <span class="suave">${GOTA} ${d.chuva_prob ?? "—"}%</span>
+      <span>${icone(d.tempo)}</span>
+      <span><strong>${Math.round(d.temp_max)}°</strong> <span class="suave">${Math.round(d.temp_min)}°</span></span>
+      <span>${d.avisos.length ? `<span class="nivel-clima ${d.nivel}">${NIVEL_CLIMA[d.nivel]} · ${
+        d.avisos.map((a) => a.descricao.toLowerCase()).join(", ")}</span>` : ""}</span></div>`).join("")}</div>`;
+}
+
+function marDeHoje(d) {
+  return `<div class="tiles">
+    <div class="tile"><small>Onda na praia hoje</small><b>${umaCasa(d.onda_praia)} m</b><span class="suave">Campeche</span></div>
+    <div class="tile"><small>Swell no mar aberto</small><b>${umaCasa(d.swell_altura)} m</b>
+      <span class="suave">de ${d.swell_rumo}, ${umaCasa(d.swell_periodo, 0)} s</span></div>
+    <div class="tile"><small>Maré máxima hoje</small><b>${umaCasa(d.mare_max, 2)} m</b><span class="suave">nível do mar</span></div></div>`;
+}
+
+const GOTA = `<svg width="9" height="12" viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6.5 0 8.5a5 4.5 0 0 0 10 0C10 6.5 5 0 5 0z" fill="#5f6368"/></svg>`;
+
+function icone(tipo) {
+  // Ícones desenhados aqui mesmo, sem biblioteca: sol, nuvem, chuva, tempestade, neblina.
+  const nuvem = (x = 0, cor = "#b0b7c3") => `<path transform="translate(${x} 0)" d="M9 24h15a5 5 0 0 0 .6-9.97A7 7 0 0 0 11.2 12.6 5.7 5.7 0 0 0 9 24z" fill="${cor}"/>`;
+  const sol = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#f4b400"/>`;
+  const desenho = {
+    sol: sol(16, 16, 8),
+    parcial: sol(20, 11, 6) + nuvem(-2),
+    nublado: nuvem(),
+    neblina: [12, 17, 22].map((y) => `<line x1="6" x2="26" y1="${y}" y2="${y}" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round"/>`).join(""),
+    chuva: nuvem(0, "#9aa0a6") + [10, 16, 22].map((x) => `<line x1="${x}" x2="${x - 2}" y1="26" y2="31" stroke="#1f5fbf" stroke-width="2" stroke-linecap="round"/>`).join(""),
+    tempestade: nuvem(0, "#9aa0a6") + `<path d="M17 23l-4 6h3l-2 5 6-7h-3l2-4z" fill="#f4b400"/>`,
+  }[tipo];
+  return `<svg width="30" height="30" viewBox="0 0 32 34" role="img" aria-label="${tipo}"><title>${tipo}</title>${desenho}</svg>`;
+}
+
+function graficoOndas(h) {
+  // Duas séries no mesmo eixo e da mesma medida (altura da onda, m): no mar aberto e na praia.
+  const L = 640, A = 200, m = 40, base = 165, topo = 14;
+  const maior = Math.max(1, ...h.onda_mar_aberto.filter((v) => v != null), ...h.onda_praia.filter((v) => v != null));
+  const teto = Math.ceil(maior);
+  const x = (i) => m + (i / (h.tempo.length - 1)) * (L - m - 70), y = (v) => base - (v / teto) * (base - topo);
+  const linha = (serie, cor) => `<polyline fill="none" stroke="${cor}" stroke-width="2"
+    points="${serie.map((v, i) => (v == null ? "" : `${x(i)},${y(v)}`)).join(" ")}"/>`;
+  let svg = "";
+  for (let v = 0; v <= teto; v += teto > 3 ? 1 : 0.5) {
+    svg += `<line x1="${m}" x2="${L - 70}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v.toLocaleString("pt-BR")} m</text>`;
+  }
+  h.tempo.forEach((t, i) => {
+    if (t.endsWith("T00:00")) {
+      svg += `<line x1="${x(i)}" x2="${x(i)}" y1="${topo}" y2="${base}" stroke="#f1f1f1"/>
+        <text x="${x(i) + 3}" y="${base + 16}" font-size="11" fill="#5f6368">${t.slice(8, 10)}/${t.slice(5, 7)}</text>`;
+    }
+  });
+  svg += linha(h.onda_mar_aberto, "var(--mar)") + linha(h.onda_praia, "var(--praia)");
+  const ultimo = (s) => [...s].reverse().find((v) => v != null);
+  svg += `<text x="${L - 66}" y="${y(ultimo(h.onda_mar_aberto)) + 4}" font-size="11" fill="#1f2328">mar aberto</text>
+    <text x="${L - 66}" y="${y(ultimo(h.onda_praia)) + 4}" font-size="11" fill="#1f2328">praia</text>`;
+  // Faixas invisíveis de 3 em 3 horas: passar o mouse mostra os dois valores daquela hora.
+  for (let i = 0; i < h.tempo.length; i += 3) {
+    svg += `<rect x="${x(i) - 4}" y="${topo}" width="${x(3) - x(0)}" height="${base - topo}" fill="transparent">
+      <title>${h.tempo[i].slice(8, 10)}/${h.tempo[i].slice(5, 7)} ${h.tempo[i].slice(11, 16)} · mar aberto ${(h.onda_mar_aberto[i] ?? 0).toLocaleString("pt-BR")} m · praia ${(h.onda_praia[i] ?? 0).toLocaleString("pt-BR")} m</title></rect>`;
+  }
+  return `<p><strong>Altura das ondas</strong> <span class="suave">· mar aberto × praia (Campeche), hora a hora</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" role="img" aria-label="Altura da onda no mar aberto e na praia, próximos dias">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--mar)"></i>onda no mar aberto</span>
+      <span><i style="background:var(--praia)"></i>onda na praia</span><span>· Fonte: Open-Meteo</span></div>`;
+}
+
+async function gerarAvisoDaSemana() {
+  // O mesmo quadro dos dias, para imprimir; o e-mail leva a versão em texto curto.
+  try {
+    const a = await api("/v1/clima/aviso");
+    const mailto = `mailto:?subject=${encodeURIComponent(a.assunto)}&body=${encodeURIComponent(a.texto)}`;
+    $("aviso-semana").innerHTML = `<div class="cartao">
+      <p><strong>Previsão da semana</strong> <span class="suave">· Florianópolis</span></p>
+      <p class="resumo-clima">${climaAtual.resumo}</p>
+      ${listaDeDias(climaAtual.dias)}
+      <p class="suave">Em emergência: Defesa Civil 199 · Bombeiros 193</p>
+      <p class="nota">Fonte: INMET (avisos) · Open-Meteo (chuva e temperatura)</p>
+      <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
+      <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar a professores e pais</a></div></div>`;
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function painelDaEscola(p) {
+  // A vista da escola: cada chave num quadro pequeno, ocorrências por mês. Nenhum nome, nenhum relato.
+  const com = p.chaves.filter((c) => c.total).sort((x, y) => (x.gravidade === "imediata" ? -1 : 0) - (y.gravidade === "imediata" ? -1 : 0) || y.total - x.total);
+  const sem = p.chaves.filter((c) => !c.total).map((c) => c.nome);
+  const maior = Math.max(1, ...com.flatMap((c) => c.por_mes));
+  const quadro = (c) => {
+    const L = 200, A = 64, base = 46, passo = L / p.meses.length;
+    const barras = c.por_mes.map((n, i) => `<g><title>${p.meses[i]}: ${n} ocorrência${n === 1 ? "" : "s"}</title>
+        <rect x="${i * passo}" y="0" width="${passo}" height="${A}" fill="transparent"/>
+        ${n ? `<rect x="${i * passo + 3}" y="${base - (n / maior) * (base - 6)}" width="${passo - 6}" height="${(n / maior) * (base - 6)}"
+          rx="2" fill="${c.gravidade === "imediata" ? "var(--alto)" : "var(--aprov)"}"/>` : ""}
+        <text x="${i * passo + passo / 2}" y="${A - 4}" text-anchor="middle" font-size="9" fill="#5f6368">${p.meses[i][0]}</text></g>`).join("");
+    return `<div class="quadro ${c.gravidade}"><div style="display:flex;justify-content:space-between">
+        <strong>${c.nome}</strong><span>${c.total}</span></div>
+      ${c.gravidade === "imediata" ? `<span class="suave">⚠ perigo iminente</span>` : ""}
+      <svg viewBox="0 0 ${L} ${A}" width="100%" role="img" aria-label="${c.nome}: ocorrências por mês">${barras}</svg></div>`;
+  };
+  return `<p><strong>Chaves na escola</strong> <span class="suave">· ${p.ano_letivo}, ocorrências por mês letivo, sem nome de aluno</span></p>
+    ${com.length ? `<div class="multiplos">${com.map(quadro).join("")}</div>` : `<p class="suave">Nenhuma chave registrada em ${p.ano_letivo}.</p>`}
+    ${sem.length ? `<p class="nota">Sem ocorrência: ${sem.join(", ")}.</p>` : ""}`;
+}
+
+function mostrarCaixa(ativo) {
+  // Um caso por aluno: quantas chamadas de atenção ele já teve e quantas ainda esperam a coordenação.
+  const casos = {};
+  for (const r of registros) {
+    const c = casos[r.aluno_id] ||= { chamadas: 0, pendentes: 0, ultima: r.criado_em };
+    c.chamadas += 1;
+    if (r.status === "aguardando_coordenacao") c.pendentes += 1;
+    if (r.criado_em > c.ultima) c.ultima = r.criado_em;
+  }
+  const ids = Object.keys(casos).sort((x, y) => casos[y].pendentes - casos[x].pendentes || x.localeCompare(y));
+  $("caixa").innerHTML = ids.length ? ids.map((id) => {
+    const a = alunos.find((x) => x.id === id) || { nome: id, turma: "" }, c = casos[id];
+    return `<div class="caso ${id === ativo ? "ativo" : ""}" onclick="abrirAluno('${id}')">
+      <div style="display:flex;justify-content:space-between;gap:8px"><strong>${a.nome}</strong>
+        ${c.pendentes ? `<span class="pendente" title="aguardando a coordenação">${c.pendentes}</span>` : ""}</div>
+      <span class="suave">${id} · ${a.turma} · ${c.chamadas} chamada${c.chamadas > 1 ? "s" : ""}</span></div>`;
+  }).join("") : `<p class="suave">Nenhuma chamada de atenção registrada.</p>`;
+}
+
+async function abrirAluno(id) {
+  // O mapa do aluno: a linha do tempo das chamadas, o boletim do ano e a média de cada bimestre.
+  $("erro-coord").textContent = "";
+  try {
+    const a = alunos.find((x) => x.id === id);
+    const b = await api(`/v1/alunos/${id}/boletim`);
+    chavesDoAluno = await api(`/v1/alunos/${id}/chaves`);
+    const trilha = await api(`/v1/alunos/${id}/acessos`);
+    const chamadas = registros.filter((r) => r.aluno_id === id).sort((x, y) => x.criado_em.localeCompare(y.criado_em));
+    const situacao = { aguardando_coordenacao: "aguardando a coordenação", aprovado: "aprovada pela coordenação" };
+    $("documento").innerHTML = "";
+    $("detalhe").innerHTML = `<div class="cartao">
+      ${ficha(a)}
+      <p><strong>Linha do tempo</strong> <span class="suave">· clique numa chamada para abrir o relato</span></p>
+      <ul class="tempo">
+        <li>Ano letivo de ${b.ano_letivo}${b.fechado ? "" : `, em andamento (atualizado em ${dataBR(b.atualizado_em)})`}:
+          frequência de ${b.frequencia}%, ${b.disciplinas.filter((d) => ["abaixo da média", "em recuperação"].includes(d.situacao)).length}
+          disciplina(s) abaixo da média</li>
+        ${chamadas.map((r) => `<li class="chamada" onclick="abrir(${r.id})">${dataBR(r.criado_em)} · chamada de atenção
+          de ${r.professor} <span class="suave">· ${situacao[r.status]}</span></li>`).join("")}
+      </ul>
+      ${graficoChaves(chavesDoAluno, b.ano_letivo)}
+      <div id="chave-detalhe"></div>
+      ${graficoMeses(b)}
+      ${tabelaBoletim(b)}
+      ${historico(trilha)}</div>`;
+    mostrarCaixa(id);
+    $("detalhe").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function graficoChaves(chaves, ano) {
+  // Uma faixa por chave, o ano letivo no eixo. Passe o mouse para ver o tema; clique para ver a situação.
+  // Cheio = aberta; vazado = solucionada; cinza = descartada (o motor errou).
+  if (!chaves.length) return `<p class="suave">O motor não achou nenhuma chave nos relatos deste aluno.</p>`;
+  const meses = ["fev", "mar", "abr", "mai", "jun", "ago", "set", "out", "nov", "dez"];
+  const numero = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12];
+  const faixas = [...new Set(chaves.map((c) => c.chave))]
+    .sort((x, y) => (chaves.find((c) => c.chave === y).gravidade === "imediata") - (chaves.find((c) => c.chave === x).gravidade === "imediata"));
+  const L = 560, m = 140, linha = 30, A = faixas.length * linha + 30;
+  const x = (iso) => {
+    const [aa, mm, dd] = iso.slice(0, 10).split("-").map(Number);
+    let i = numero.indexOf(mm);
+    if (i < 0) i = mm === 7 ? 4.99 : mm < 2 ? 0 : 9.99; // julho é férias; fora do ano letivo vai para a borda
+    return m + ((aa < ano ? 0 : aa > ano ? 10 : i + (dd - 1) / 31) / 10) * (L - m - 10);
+  };
+  let svg = meses.map((mes, i) => `<text x="${m + ((i + 0.5) / 10) * (L - m - 10)}" y="${A - 8}" text-anchor="middle"
+    font-size="11" fill="#5f6368">${mes}</text>`).join("");
+  faixas.forEach((chave, k) => {
+    const yy = 14 + k * linha, primeira = chaves.find((c) => c.chave === chave);
+    svg += `<line x1="${m}" x2="${L - 10}" y1="${yy}" y2="${yy}" stroke="#eee"/>
+      <text x="${m - 8}" y="${yy + 4}" text-anchor="end" font-size="12" fill="#1f2328">${primeira.nome}</text>`;
+    for (const c of chaves.filter((c) => c.chave === chave)) {
+      const cor = c.situacao === "descartada" ? "#9aa0a6" : c.gravidade === "imediata" ? "var(--alto)" : "var(--aprov)";
+      const cheio = c.situacao === "aberta";
+      svg += `<g style="cursor:pointer" onclick="mostrarChave(${c.id})"><title>${c.nome} · ${dataBR(c.em)} · ${c.situacao} · clique para ver</title>
+        <circle cx="${x(c.em)}" cy="${yy}" r="12" fill="transparent"/>
+        <circle cx="${x(c.em)}" cy="${yy}" r="6" fill="${cheio ? cor : "#fff"}" stroke="${cor}" stroke-width="2"/></g>`;
+    }
+  });
+  return `<p><strong>Chaves dos relatos</strong> <span class="suave">· ${ano} · cheio = aberta, vazado = solucionada,
+      cinza = descartada · clique num ponto</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:560px" role="img"
+      aria-label="Chaves achadas nos relatos ao longo do ano">${svg}</svg>`;
+}
+
+function mostrarChave(id) {
+  // A situação ocorrida: o trecho do relato que disparou a chave e se ela já foi solucionada.
+  const c = chavesDoAluno.find((x) => x.id === id);
+  const botoes = c.situacao === "aberta"
+    ? `<button class="acao" onclick="mudarSituacao(${c.id}, 'solucionada')">Marcar como solucionada</button>
+       <button class="acao secundaria" onclick="mudarSituacao(${c.id}, 'descartada')">Descartar (o motor errou)</button>`
+    : `<button class="acao secundaria" onclick="mudarSituacao(${c.id}, 'aberta')">Reabrir</button>`;
+  $("chave-detalhe").innerHTML = `<div class="cartao" style="background:#f8f9fb">
+    <p><strong>${c.nome}</strong>${c.gravidade === "imediata" ? ` <span class="alerta">⚠ perigo iminente</span>` : ""}
+      <span class="suave">· ${dataBR(c.em)} · relato de ${c.professor}</span></p>
+    <p>“${c.trecho}”</p>
+    <p class="suave">Situação: <strong>${c.situacao}</strong>${c.atualizado_por ? ` · por ${c.atualizado_por} em ${dataBR(c.atualizado_em)}` : ""}</p>
+    ${botoes}
+    <button class="acao secundaria" onclick="abrir(${c.registro_id})">Abrir o relato completo</button></div>`;
+}
+
+async function mudarSituacao(id, situacao) {
+  $("erro-coord").textContent = "";
+  try {
+    const c = await api(`/v1/chaves/${id}/situacao`, { method: "POST", body: JSON.stringify({ situacao }) });
+    await carregarFila();
+    await abrirAluno(c.aluno_id);
+    mostrarChave(id);
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+const dataBR = (iso) => iso.slice(0, 10).split("-").reverse().join("/");
+const nota10 = (v) => (v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+
+function graficoMeses(b) {
+  // Uma série só: a média geral de cada mês, em dois blocos de semestre (julho é férias).
+  // O mês em andamento aparece vazado; os meses que ainda não vieram ficam só no eixo.
+  const L = 520, A = 210, m = 40, base = 160, topo = 16, passo = 36, folga = 24;
+  const x = (i) => m + 22 + i * passo + (i >= 5 ? folga : 0), y = (v) => base - (v / 10) * (base - topo);
+  let svg = "";
+  for (const v of [0, 5, 10]) {
+    svg += `<line x1="${m}" x2="${L - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v}</text>`;
+  }
+  svg += `<line x1="${m}" x2="${L - 10}" y1="${y(b.media_aprovacao)}" y2="${y(b.media_aprovacao)}" stroke="#9aa0a6" stroke-dasharray="4 4"/>
+    <text x="${L - 10}" y="${y(b.media_aprovacao) - 5}" text-anchor="end" font-size="11" fill="#5f6368">média ${nota10(b.media_aprovacao)}</text>`;
+  for (const s of [[0, 5], [5, 10]]) {
+    const pontos = b.medias_mes.slice(...s).map((v, k) => ({ v, i: s[0] + k })).filter((p) => p.v != null);
+    if (pontos.length > 1) {
+      svg += `<polyline fill="none" stroke="var(--aprov)" stroke-width="2"
+        points="${pontos.map((p) => `${x(p.i)},${y(p.v)}`).join(" ")}"/>`;
+    }
+  }
+  b.medias_mes.forEach((v, i) => {
+    const aberto = i === b.mes_atual;
+    svg += `<text x="${x(i)}" y="${base + 18}" text-anchor="middle" font-size="12"
+      fill="${v == null && !aberto ? "#9aa0a6" : "#1f2328"}">${b.meses[i]}</text>`;
+    if (v == null) return;
+    svg += `<g><title>${b.meses[i]} · média geral ${nota10(v)}${aberto ? " · mês em andamento" : ""}</title>
+      <circle cx="${x(i)}" cy="${y(v)}" r="14" fill="transparent"/>
+      <circle cx="${x(i)}" cy="${y(v)}" r="5" fill="${aberto ? "#fff" : "var(--aprov)"}" stroke="${aberto ? "var(--aprov)" : "#fff"}" stroke-width="2"/></g>`;
+  });
+  const meio = (a, z) => (x(a) + x(z)) / 2;
+  svg += `<text x="${meio(0, 4)}" y="${base + 36}" text-anchor="middle" font-size="11" fill="#5f6368">1º semestre</text>
+    <text x="${meio(5, 9)}" y="${base + 36}" text-anchor="middle" font-size="11" fill="#5f6368">2º semestre</text>`;
+  const vazio = b.medias_mes.some((v) => v != null) ? ""
+    : `<text x="${L / 2}" y="${y(5)}" text-anchor="middle" font-size="13" fill="#5f6368">sem nota registrada no ano</text>`;
+  return `<p><strong>Média geral por mês</strong> <span class="suave">· ${b.ano_letivo}, de 0 a 10${b.fechado ? "" : " · ponto vazado = mês em andamento"}</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" style="max-width:520px" role="img"
+      aria-label="Média geral por mês em ${b.ano_letivo}">${svg}${vazio}</svg>`;
+}
+
+function tabelaBoletim(b) {
+  // O boletim que os pais acompanham, mês a mês, em dois blocos de semestre. É também a tabela do gráfico acima.
+  const cor = { aprovado: "baixo", "acima da média": "baixo", "em recuperação": "medio", "abaixo da média": "medio", "sem nota": "suave" };
+  const celula = (v, i) => (i === b.mes_atual ? `<td class="aberto">${nota10(v)}</td>` : `<td>${nota10(v)}</td>`);
+  const semestre = (n, de, ate) => {
+    const meses = b.meses.slice(de, ate);
+    const ultimo = n === 2;
+    const titulo = `${n}º semestre <span class="suave">· ${meses[0]} a ${meses[meses.length - 1]}${
+      ultimo && !b.fechado ? `, em andamento (atualizado em ${dataBR(b.atualizado_em)})` : ""}</span>`;
+    const linhas = b.disciplinas.map((d) => `<tr><td>${d.disciplina}</td>
+      ${d.notas.slice(de, ate).map((v, k) => celula(v, de + k)).join("")}
+      <td><strong>${nota10(d.medias_semestre[n - 1])}</strong></td>
+      <td>${d.faltas.slice(de, ate).reduce((s, f) => s + (f ?? 0), 0)}</td>
+      ${ultimo ? `<td><strong>${nota10(d.media_ano)}</strong></td><td class="${cor[d.situacao]}">${d.situacao}</td>` : ""}</tr>`).join("");
+    return `<p style="margin-top:16px"><strong>${titulo}</strong></p>
+      <div class="rolagem"><table class="boletim">
+        <thead><tr><th>Disciplina</th>${meses.map((mes, k) => `<th class="${de + k === b.mes_atual ? "aberto" : ""}">${mes}</th>`).join("")}
+          <th>Média</th><th>Faltas</th>${ultimo ? `<th>Ano${b.fechado ? "" : " (parcial)"}</th><th>Situação</th>` : ""}</tr></thead>
+        <tbody>${linhas}</tbody>
+        <tfoot><tr><td>Média geral</td>${b.medias_mes.slice(de, ate).map((v, k) => celula(v, de + k)).join("")}
+          <td>${nota10(b.medias_semestre[n - 1])}</td><td></td>${ultimo ? "<td></td><td></td>" : ""}</tr></tfoot>
+      </table></div>`;
+  };
+  const fonte = b.fonte === "demo" ? "Boletim de demonstração, derivado das médias da base UCI." : "Boletim do diário de classe.";
+  const baixa = b.frequencia < b.frequencia_minima;
+  return `${semestre(1, 0, 5)}${semestre(2, 5, 10)}
+    <p class="${baixa ? "alto" : ""}" style="font-size:14px">Frequência no ano até agora: <strong>${b.frequencia}%</strong>
+      ${baixa ? `(abaixo do mínimo de ${b.frequencia_minima}%)` : ""}</p>
+    <p class="nota">Média para aprovação: ${nota10(b.media_aprovacao)}. Frequência mínima: ${b.frequencia_minima}% (LDB, art. 24).
+      ${b.fechado ? "" : "Aprovação e recuperação só saem quando o ano fecha; até lá, a situação mostra onde a disciplina está em relação à média. "}${fonte}</p>`;
 }
 
 async function dispersao(a) {
@@ -346,6 +768,8 @@ async function abrir(id) {
     ${await dispersao(a)}
     <p><strong>Relatório do professor</strong> <span class="suave">· ${r.professor}, ${r.criado_em.replace("T", " ")}</span></p>
     <p>“${r.acompanhamento}”</p>
+    ${r.chaves.length ? `<p class="suave">Chaves do relato: ${r.chaves.map((c) => `<span class="chip">${c}</span>`).join("")}
+      ${r.alerta ? `<span class="alerta">⚠ perigo iminente</span>` : ""}</p>` : ""}
     ${cartaoPredicao(r.predicao, a)}
     <button class="acao" onclick="aprovar(${r.id})">Aprovar e gerar documento</button>
     ${historico(trilha)}</div>`;
@@ -353,26 +777,46 @@ async function abrir(id) {
 }
 
 function historico(trilha) {
-  const nomes = { relatorio_enviado: "enviou o relatório", ficha_aberta: "abriu a ficha",
-                  aprovado: "aprovou", documento_gerado: "gerou o documento" };
+  const nomes = { relatorio_enviado: "enviou o relatório", fila_vista: "viu na fila", ficha_aberta: "abriu a ficha",
+                  historico_aberto: "abriu o histórico", boletim_aberto: "abriu o boletim",
+                  chaves_vistas: "viu as chaves", chave_solucionada: "marcou uma chave como solucionada",
+                  chave_descartada: "descartou uma chave", chave_aberta: "reabriu uma chave", aprovado: "aprovou", documento_gerado: "gerou o documento",
+                  documento_impresso: "imprimiu o documento", envio_aberto: "abriu o e-mail para o responsável" };
   return `<p style="margin-top:20px"><strong>Histórico de acesso</strong>
       <span class="suave">· quem viu ou mexeu nos dados deste aluno (LGPD, art. 37)</span></p>
     <ul class="suave">${trilha.map((t) =>
-      `<li>${t.em.replace("T", " ")} · ${t.quem} ${nomes[t.acao]} (registro nº ${t.registro_id})</li>`).join("")}</ul>`;
+      `<li>${t.em.replace("T", " ")} · ${t.quem} ${nomes[t.acao]}${t.registro_id ? ` (registro nº ${t.registro_id})` : ""}</li>`).join("")}</ul>`;
 }
 
 async function aprovar(id) {
   $("erro-coord").textContent = "";
   try {
     await api(`/v1/registros/${id}/aprovar`, { method: "POST" });
-    const doc = await api(`/v1/registros/${id}/documento`);
+    $("documento").innerHTML = `<div class="cartao"><p><strong>O que vai para a família?</strong></p>
+      <p class="suave">O relato do professor fica na ficha do aluno; não entra no documento.</p>
+      <button class="acao" onclick="gerarDocumento(${id}, 'convite_boletim')">Convite e boletim</button>
+      <button class="acao" onclick="gerarDocumento(${id}, 'convite')">Só o convite</button></div>`;
+    carregarFila();
+  } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+async function gerarDocumento(id, modelo) {
+  $("erro-coord").textContent = "";
+  try {
+    const doc = await api(`/v1/registros/${id}/documento?modelo=${modelo}`);
     const mailto = `mailto:${doc.para}?subject=${encodeURIComponent(doc.assunto)}&body=${encodeURIComponent(doc.texto)}`;
     $("documento").innerHTML = `<div class="cartao"><p class="suave nao-imprime">Para: ${doc.para}</p>
       <pre>${doc.texto}</pre>
-      <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
-      <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar ao responsável</a></div></div>`;
-    carregarFila();
+      <div class="nao-imprime"><button class="acao" onclick="saida(${id}, 'documento_impresso').then(() => window.print())">Imprimir</button>
+      <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}"
+        onclick="saida(${id}, 'envio_aberto')">Enviar ao responsável</a></div></div>`;
   } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function saida(id, tipo) {
+  // Imprimir e abrir o e-mail também vão para a trilha de auditoria.
+  return api(`/v1/registros/${id}/saida`, { method: "POST", body: JSON.stringify({ tipo }) })
+    .catch((e) => { $("erro-coord").textContent = e.message; });
 }
 
 carregarCadastros();

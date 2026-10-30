@@ -18,8 +18,8 @@ Referências de estratégia e formação que inspiraram o fluxo (sem vínculo in
 
 | Quem | Faz | Vê |
 |---|---|---|
-| Professor (senha) | escolhe turma e aluno, escreve o relatório | ficha do aluno, aprovação e frequência por semestre |
-| Coordenação (senha) | abre a fila, aprova, gera o documento | prioridade, % de evasão, o que mais pesou, dispersão das médias, histórico de acesso |
+| Professor (senha) | entra com a senha, escolhe turma e aluno, escreve o relatório e assina com o nome completo | ficha do aluno, aprovação e frequência por semestre |
+| Coordenação (senha) | abre a fila e a caixa de casos, marca cada chave como solucionada ou descarta, aprova, gera o documento | prioridade (perigo iminente primeiro), % de evasão, o que mais pesou, chaves dos relatos, chaves na escola sem nome, dispersão das médias, linha do tempo das chamadas, boletim do ano, histórico de acesso |
 | Família | recebe o convite para conversar | documento impresso ou e-mail, sem a lista de fatores |
 
 ## Modelo
@@ -44,14 +44,52 @@ Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/
 - Média 0 na base significa sem nota registrada no semestre, não nota zero.
 - Frequência e situação da matrícula não existem na base: na demonstração são inventadas (`"fonte": "demo"`); numa escola, vêm do diário de classe e da secretaria.
 - Os alunos da demonstração são linhas anônimas da base, filtradas para 17 a 20 anos (os mais velhos são outliers para o público do projeto). O modelo é treinado com a base inteira.
+- O boletim mensal por disciplina também é de demonstração: a base só tem médias por semestre, então `gerar_boletins_ficticios.py` deriva as notas e as faltas de cada mês em volta da média, da proporção de aprovadas e da frequência de cada aluno (`"fonte": "demo"`). O ano letivo de 2026 aparece em andamento, atualizado em 29/10/2026.
 - O relatório do professor não entra no cálculo. O risco mostra associação, não causa.
+
+## Motor de chaves
+
+O relato do professor é livre ("saiu batendo cadeiras", "falou em discurso de ódio"). Quando ele chega, o motor (`app/chaves.py`) lê o texto e devolve só o tema da situação, junto com a frase que o disparou. São regras escritas à mão, sem IA, que qualquer pessoa pode ler.
+
+| Gravidade | Chaves |
+|---|---|
+| perigo iminente: o caso vai para o topo da fila | ameaça, arma, fala em se machucar |
+| atenção | conflito físico, discurso de ódio, discurso sombrio, bullying, isolamento, faltas, substâncias, companhias |
+
+- A chave descreve a situação, nunca a pessoa. Dar nome a comportamento é do profissional de saúde mental, que decide e assina.
+- Cada chave fica num banco de chaves, separado do relato, e a coordenação marca como solucionada, reabre ou descarta quando o motor errou. Cada mudança vai para a trilha.
+- O motor não entende negação: "não bateu em ninguém" ainda dispara "conflito físico". Por isso existe o descarte.
+- A vista da escola mostra quantas vezes cada chave apareceu em cada mês, sem nome de aluno e sem relato.
+- O modelo de evasão não lê o relato nem as chaves.
+
+## Mar e chuva: avisos para as escolas
+
+Em Florianópolis, swell de sul com período e energia altos enche a maré nos mangues; com chuva forte, alaga e trava a mobilidade da cidade. A coordenação vê a previsão dos próximos 7 dias no jeito do app de clima do celular (uma frase no topo, a lista dos dias com chance de chuva, o tempo, máxima e mínima, e o aviso do dia), o mar de hoje e a altura das ondas no mar aberto e na praia. O aviso da semana sai no mesmo formato para imprimir, e em texto curto para o e-mail.
+
+| Fonte (pública, sem chave) | O que traz |
+|---|---|
+| [Open-Meteo Marine](https://open-meteo.com/en/docs/marine-weather-api) | onda no mar aberto e na praia (Campeche), swell (altura, direção, período), nível do mar |
+| [Open-Meteo Forecast](https://open-meteo.com/en/docs) | chuva, temperatura e o tempo de cada dia |
+| [INMET](https://portal.inmet.gov.br) | avisos meteorológicos ativos para Florianópolis (IBGE 4205407) |
+
+| Aviso do INMET | Nível no painel |
+|---|---|
+| Perigo Potencial | atenção |
+| Perigo, Grande Perigo | alerta |
+
+- O nível vem só dos avisos oficiais, de hoje até daqui a 2 dias. A regra do swell de sul ainda precisa de ajuste fino (não é qualquer ondulação de sul que pede chamada); até lá, os dados do mar aparecem, mas não acendem alerta.
+- A previsão fica guardada por 3 horas; o botão "atualizar" busca de novo.
+- É a única parte do sistema que depende da internet. Se uma fonte cair, a rota responde 503 e o resto continua funcionando. Os testes usam dados montados, sem rede.
 
 ## Proteção de dados
 
 - Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
 - O professor não recebe a previsão; ela fica com a coordenação.
-- Coordenação entra com login e recebe um passe temporário (2 h, só em memória); sem passe, as rotas respondem 401.
-- Trilha de auditoria: cada envio, abertura de ficha, aprovação e documento fica gravado com quem e quando (LGPD, art. 37).
+- Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
+- O cadastro dos alunos só abre com login. O professor vê e envia relato só dos alunos das turmas dele; a coordenação vê a escola toda.
+- O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
+- Trilha de auditoria (LGPD, art. 37): fica gravado, com quem e quando, cada envio, cada aluno que aparece na fila, cada abertura de ficha, de histórico e de boletim, cada aprovação, cada documento gerado e cada vez que a coordenação imprime o documento ou abre o e-mail para o responsável. O "quem" vem sempre do login.
+- A trilha só aceita inclusão: gatilhos no SQLite barram alterar ou apagar uma linha, mesmo fora da API.
 - O modelo recebe só números acadêmicos, nunca nome ou texto.
 - Todos os nomes, e-mails e senhas são fictícios. O banco `data/escola.db` não vai para o repositório.
 
@@ -63,16 +101,19 @@ app/
   services.py           inferência e fatores (peso × valor da regressão logística)
   schemas.py            contratos Pydantic com Field (faixas → 422)
   regras.py             limitações, níveis e perguntas, escritos à mão
-  escola.py             SQLite: alunos, professores, coordenação, registros, acessos
+  chaves.py             motor de chaves: o tema da situação em cada relato, escrito à mão
+  clima.py              mar e chuva: busca nas fontes públicas e o nível pelos avisos do INMET
+  escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, chaves, acessos
   seguranca.py          hash de senha PBKDF2
-  sessoes.py            passes temporários da coordenação
+  sessoes.py            passes temporários do professor e da coordenação
   indicadores.py        médias por semestre e r de Pearson
   routers/
     predicao.py         /health e /v1/predict
     escola.py           professor, coordenação, registros, documento, acessos
     indicadores.py      /v1/indicadores/medias
+    clima.py            /v1/clima e o aviso da semana
 web/index.html          telas do professor e da coordenação (HTML, CSS e JS, sem dependências)
-tests/                  API, fluxo da escola e indicadores
+tests/                  API, fluxo da escola, motor de chaves, mar e chuva, indicadores
 gerar_*_ficticios.py    dados de demonstração
 treinar.py              pipeline offline
 ```
@@ -96,23 +137,34 @@ uvicorn app.main:app --reload
 |---|---|---|---|
 | GET | `/health` | livre | status e se o modelo está carregado |
 | POST | `/v1/predict` | livre | risco, nível, fatores, limitações, perguntas |
-| GET | `/v1/alunos`, `/v1/professores`, `/v1/coordenacao` | livre | cadastros (sem hash) |
-| POST | `/v1/registros` | senha do professor | só a confirmação do envio |
-| POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário |
-| GET | `/v1/registros`, `/v1/registros/{id}` | passe | fila e ficha (abrir a ficha grava o acesso) |
-| POST | `/v1/registros/{id}/aprovar` | passe | registro aprovado |
-| GET | `/v1/registros/{id}/documento` | passe | texto para a família |
-| GET | `/v1/alunos/{id}/acessos` | passe | histórico de acesso |
+| GET | `/v1/professores`, `/v1/coordenacao` | livre | nomes para o login (sem hash) |
+| POST | `/v1/professores/login` | senha do professor | passe temporário do professor |
+| POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário da coordenação |
+| GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos (o professor recebe só as turmas dele) |
+| POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
+| GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (as duas gravam o acesso) |
+| POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
+| GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
+| POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
+| GET | `/v1/alunos/{id}/boletim` | passe da coordenação | boletim do ano: notas por mês em dois semestres (fevereiro a junho, agosto a dezembro), médias, faltas e situação (grava o acesso) |
+| GET | `/v1/alunos/{id}/chaves` | passe da coordenação | chaves do aluno com o trecho do relato e a situação (grava o acesso) |
+| POST | `/v1/chaves/{id}/situacao` | passe da coordenação | marca a chave como aberta, solucionada ou descartada (grava na trilha) |
+| GET | `/v1/indicadores/chaves` | passe da coordenação | ocorrências de cada chave por mês letivo, sem nome de aluno |
+| GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
 | GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
+| GET | `/v1/clima?atualizar=` | passe da coordenação | mar, maré, chuva, temperatura e avisos do INMET para 7 dias, com o nível do painel |
+| GET | `/v1/clima/aviso` | passe da coordenação | texto curto da semana para o e-mail a professores e pais |
 
 | Código | Quando |
 |---|---|
 | 200 / 201 | sucesso |
 | 400 | regra de negócio (aprovadas > inscritas, registro já aprovado, documento antes da aprovação) |
 | 401 | senha errada ou sem passe |
+| 403 | passe de outro papel, nome da assinatura que não confere, ou aluno fora das turmas do professor |
 | 404 | aluno ou registro inexistente |
 | 422 | tipo ou faixa inválidos (Pydantic) |
 | 500 | modelo não carregado ou falha não prevista |
+| 503 | previsão de mar e chuva indisponível (fonte pública fora do ar) |
 
 ## Testes
 

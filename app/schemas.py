@@ -1,5 +1,5 @@
 """Contratos de dados da API (Pydantic): o que entra e o que sai."""
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -93,8 +93,8 @@ class Professor(BaseModel):
 
 class NovoRegistro(BaseModel):
     aluno_id: str = Field(..., pattern=r"^A\d{4}$", examples=["A0001"])
-    professor_id: str = Field(..., pattern=r"^P\d{3}$", examples=["P001"])
-    senha: str = Field(..., min_length=4, max_length=64, description="Senha do professor (não fica gravada)")
+    nome_completo: str = Field(..., min_length=3, max_length=120,
+                               description="Assinatura: o nome completo do professor que fez o login")
     acompanhamento: str = Field(..., min_length=10, max_length=1000,
                                 description="O que o professor tem observado (não entra no modelo)")
 
@@ -109,6 +109,43 @@ class Registro(BaseModel):
     criado_em: datetime
     aprovado_em: datetime | None = None
     aprovado_por: str | None = None
+    chaves: list[str] = Field([], description="Temas que o motor achou no relato (menos os descartados)")
+    alerta: bool = Field(False, description="Alguma chave de perigo iminente: o caso vai para o topo da fila")
+
+
+class ChaveOcorrida(BaseModel):
+    """Uma chave do banco de chaves: o tema, o trecho do relato que a disparou e a situação do caso."""
+    id: int
+    registro_id: int
+    aluno_id: str
+    chave: str
+    nome: str
+    gravidade: Literal["imediata", "atencao"]
+    trecho: str
+    situacao: Literal["aberta", "solucionada", "descartada"]
+    em: datetime
+    professor: str
+    atualizado_por: str | None = None
+    atualizado_em: datetime | None = None
+
+
+class MudancaDeSituacao(BaseModel):
+    """Descartada = o motor errou (por exemplo, uma negação que ele não entendeu)."""
+    situacao: Literal["aberta", "solucionada", "descartada"]
+
+
+class SerieDeChave(BaseModel):
+    chave: str
+    nome: str
+    gravidade: Literal["imediata", "atencao"]
+    por_mes: list[int] = Field(..., description="Ocorrências em cada mês letivo, sem nome de aluno")
+    total: int
+
+
+class PainelDeChaves(BaseModel):
+    ano_letivo: int
+    meses: list[str]
+    chaves: list[SerieDeChave]
 
 
 class RegistroEnviado(BaseModel):
@@ -119,10 +156,100 @@ class RegistroEnviado(BaseModel):
 
 
 class Acesso(BaseModel):
-    registro_id: int
-    acao: Literal["relatorio_enviado", "ficha_aberta", "aprovado", "documento_gerado"]
+    registro_id: int | None = Field(None, description="Vazio quando a ação é sobre o aluno, não sobre um registro")
+    acao: Literal["relatorio_enviado", "fila_vista", "ficha_aberta", "historico_aberto", "boletim_aberto",
+                  "chaves_vistas", "chave_solucionada", "chave_descartada", "chave_aberta",
+                  "aprovado", "documento_gerado", "documento_impresso", "envio_aberto"]
     quem: str
     em: datetime
+
+
+class DisciplinaBoletim(BaseModel):
+    disciplina: str
+    notas: list[float | None] = Field(..., min_length=10, max_length=10,
+                                      description="Fevereiro a dezembro, sem julho; vazio = mês que ainda não veio")
+    faltas: list[int | None] = Field(..., min_length=10, max_length=10)
+    medias_semestre: list[float | None] = Field(..., min_length=2, max_length=2)
+    media_ano: float | None = Field(None, ge=0, le=10, description="Parcial enquanto o ano não fecha")
+    total_faltas: int = Field(..., ge=0)
+    # Aprovado e recuperação só depois que o ano fecha; antes, só onde a disciplina está em relação à média.
+    situacao: Literal["aprovado", "em recuperação", "acima da média", "abaixo da média", "sem nota"]
+
+
+class Boletim(BaseModel):
+    """O boletim que os pais acompanham: disciplina por disciplina, mês a mês, em dois semestres."""
+    aluno_id: str
+    ano_letivo: int
+    meses: list[str] = Field(..., min_length=10, max_length=10)
+    mes_atual: int | None = Field(None, description="Índice do mês em andamento; vazio se o ano fechou")
+    atualizado_em: date
+    fechado: bool
+    media_aprovacao: float
+    disciplinas: list[DisciplinaBoletim]
+    medias_mes: list[float | None] = Field(..., description="Média geral de cada mês")
+    medias_semestre: list[float | None] = Field(..., min_length=2, max_length=2)
+    frequencia: int = Field(..., ge=0, le=100, description="Frequência no ano até agora (%)")
+    frequencia_minima: int = Field(75, description="Mínimo da LDB (Lei 9.394/1996, art. 24, VI)")
+    fonte: Literal["demo", "diario_de_classe"]
+
+
+class AvisoINMET(BaseModel):
+    descricao: str
+    severidade: str
+    inicio: str
+    fim: str
+    riscos: list[str]
+    instrucoes: list[str]
+
+
+class DiaDeClima(BaseModel):
+    data: date
+    rotulo: str = Field(..., description="Hoje, Amanhã ou o dia da semana")
+    tempo: Literal["sol", "parcial", "nublado", "neblina", "chuva", "tempestade"]
+    temp_max: float | None = None
+    temp_min: float | None = None
+    swell_altura: float | None = Field(None, description="Altura máxima do swell no mar aberto (m)")
+    swell_direcao: float | None = Field(None, description="De onde vem o swell (graus)")
+    swell_rumo: str
+    swell_periodo: float | None = Field(None, description="Período máximo do swell (s)")
+    onda_praia: float | None = Field(None, description="Altura máxima da onda na praia (m)")
+    mare_max: float | None = Field(None, description="Nível do mar máximo no dia, na praia (m)")
+    chuva_mm: float | None = None
+    chuva_prob: int | None = Field(None, ge=0, le=100)
+    avisos: list[AvisoINMET]
+    nivel: Literal["normal", "atencao", "alerta"] = Field(..., description="Vem só dos avisos do INMET")
+
+
+class HorasDeOnda(BaseModel):
+    tempo: list[str]
+    onda_mar_aberto: list[float | None] = Field(..., description="Altura da onda no mar aberto (m)")
+    onda_praia: list[float | None]
+
+
+class Clima(BaseModel):
+    """Mar e chuva dos próximos 7 dias em Florianópolis, com o nível dos avisos oficiais para as escolas."""
+    atualizado_em: datetime
+    nivel: Literal["normal", "atencao", "alerta"] = Field(..., description="O pior nível de hoje até daqui a 2 dias")
+    resumo: str = Field(..., description="Uma frase curta para o topo do painel")
+    dias: list[DiaDeClima]
+    horas: HorasDeOnda
+    avisos: list[AvisoINMET]
+    fontes: list[str]
+
+
+class AvisoDaSemana(BaseModel):
+    assunto: str
+    texto: str
+
+
+class Saida(BaseModel):
+    """O que a coordenação fez com o documento. O sistema não sabe se o e-mail foi mesmo enviado."""
+    tipo: Literal["documento_impresso", "envio_aberto"]
+
+
+class LoginProfessor(BaseModel):
+    professor_id: str = Field(..., pattern=r"^P\d{3}$", examples=["P001"])
+    senha: str = Field(..., min_length=4, max_length=64)
 
 
 class LoginCoordenacao(BaseModel):
@@ -135,6 +262,10 @@ class PasseCoordenacao(BaseModel):
     passe: str
     nome: str
     expira_em: datetime
+
+
+class PasseProfessor(PasseCoordenacao):
+    """Passe do professor: abre o painel de alunos e o envio do relato, nunca as rotas da coordenação."""
 
 
 class Documento(BaseModel):
