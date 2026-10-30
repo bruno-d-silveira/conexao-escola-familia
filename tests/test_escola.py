@@ -117,8 +117,8 @@ def test_fluxo_professor_coordenacao(cliente):
     # O relato do professor fica na ficha; não vai para a família.
     assert "Faltou às duas últimas provas" not in doc["texto"] and "Boletim" not in doc["texto"]
     com_boletim = cliente.get(f"/v1/registros/{reg['id']}/documento?modelo=convite_boletim", headers=h).json()
-    assert "Boletim" in com_boletim["texto"] and "frequência" in com_boletim["texto"]
-    assert "Faltou às duas últimas provas" not in com_boletim["texto"]
+    # O convite é o mesmo; o boletim vai à parte, como anexo, e nenhuma nota entra no texto.
+    assert com_boletim["texto"] == doc["texto"] and com_boletim["anexo"] == "boletim" and doc["anexo"] is None
     assert cliente.get(f"/v1/registros/{reg['id']}/documento?modelo=outro", headers=h).status_code == 422
 
 

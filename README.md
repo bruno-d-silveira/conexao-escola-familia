@@ -144,7 +144,7 @@ uvicorn app.main:app --reload
 | POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
 | GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (as duas gravam o acesso) |
 | POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
-| GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família (`convite` ou `convite_boletim`) |
+| GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família, só a formalidade (`convite`, ou `convite_boletim` com o boletim como anexo) |
 | POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
 | GET | `/v1/alunos/{id}/boletim` | passe da coordenação | boletim do ano: notas por mês em dois semestres (fevereiro a junho, agosto a dezembro), médias, faltas e situação (grava o acesso) |
 | GET | `/v1/alunos/{id}/chaves` | passe da coordenação | chaves do aluno com o trecho do relato e a situação (grava o acesso) |
