@@ -272,4 +272,5 @@ class Documento(BaseModel):
     registro_id: int
     para: str
     assunto: str
-    texto: str
+    texto: str = Field(..., description="O convite: só a formalidade, sem notas")
+    anexo: Literal["boletim"] | None = Field(None, description="O boletim vai à parte, como anexo")
