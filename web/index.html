@@ -85,7 +85,8 @@
   .nivel { text-align:center; padding:2px 0; border-radius:12px; font-size:12px; font-weight:600; color:#fff; }
   .nivel.baixo { background:var(--baixo); } .nivel.medio { background:var(--medio); } .nivel.alto { background:var(--alto); }
   pre { white-space:pre-wrap; font:inherit; }
-  @media print { header, nav, .nao-imprime { display:none; } .cartao { border:0; } }
+  .anexo { margin-top:24px; padding-top:12px; border-top:1px solid var(--linha); }
+  @media print { header, nav, .nao-imprime { display:none; } .cartao { border:0; } .anexo { break-before:page; border:0; } }
 </style>
 </head>
 <body>
@@ -512,7 +513,7 @@ async function gerarAvisoDaSemana() {
       ${listaDeDias(climaAtual.dias)}
       <p class="suave">Em emergência: Defesa Civil 199 · Bombeiros 193</p>
       <p class="nota">Fonte: INMET (avisos) · Open-Meteo (chuva e temperatura)</p>
-      <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
+      <div class="nao-imprime"><button class="acao" onclick="imprimirSo($('aviso-semana'), 'Previsão da semana')">Imprimir</button>
       <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar a professores e pais</a></div></div>`;
   } catch (e) { $("erro-coord").textContent = e.message; }
 }
@@ -794,7 +795,7 @@ async function aprovar(id) {
     await api(`/v1/registros/${id}/aprovar`, { method: "POST" });
     $("documento").innerHTML = `<div class="cartao"><p><strong>O que vai para a família?</strong></p>
       <p class="suave">O relato do professor fica na ficha do aluno; não entra no documento.</p>
-      <button class="acao" onclick="gerarDocumento(${id}, 'convite_boletim')">Convite e boletim</button>
+      <button class="acao" onclick="gerarDocumento(${id}, 'convite_boletim')">Convite com boletim em anexo</button>
       <button class="acao" onclick="gerarDocumento(${id}, 'convite')">Só o convite</button></div>`;
     carregarFila();
   } catch (e) { $("erro-coord").textContent = e.message; }
@@ -805,12 +806,35 @@ async function gerarDocumento(id, modelo) {
   try {
     const doc = await api(`/v1/registros/${id}/documento?modelo=${modelo}`);
     const mailto = `mailto:${doc.para}?subject=${encodeURIComponent(doc.assunto)}&body=${encodeURIComponent(doc.texto)}`;
+    // O boletim vai como anexo, numa folha à parte: o convite fica só com a formalidade.
+    let anexo = "";
+    if (doc.anexo === "boletim") {
+      const r = registros.find((x) => x.id === id), a = alunos.find((x) => x.id === r.aluno_id);
+      anexo = `<div class="anexo"><p><strong>Anexo · Boletim de ${a.nome}</strong> <span class="suave">· ${a.turma}</span></p>
+        ${tabelaBoletim(await api(`/v1/alunos/${a.id}/boletim`))}</div>
+        <p class="suave nao-imprime">O e-mail leva só o convite. Para mandar o boletim, use Imprimir e salve em PDF para anexar.</p>`;
+    }
     $("documento").innerHTML = `<div class="cartao"><p class="suave nao-imprime">Para: ${doc.para}</p>
       <pre>${doc.texto}</pre>
-      <div class="nao-imprime"><button class="acao" onclick="saida(${id}, 'documento_impresso').then(() => window.print())">Imprimir</button>
+      ${anexo}
+      <div class="nao-imprime"><button class="acao" onclick="saida(${id}, 'documento_impresso').then(() => imprimirSo($('documento'), 'Convite para a família'))">Imprimir</button>
       <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}"
         onclick="saida(${id}, 'envio_aberto')">Enviar ao responsável</a></div></div>`;
   } catch (e) { $("erro-coord").textContent = e.message; }
+}
+
+function imprimirSo(elemento, titulo) {
+  // Imprime só o documento, numa página à parte: sem painel, sem caixa de casos, sem previsão do tempo.
+  const quadro = document.createElement("iframe");
+  quadro.style.cssText = "position:fixed;width:0;height:0;border:0";
+  document.body.appendChild(quadro);
+  const pagina = quadro.contentDocument;
+  pagina.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${titulo}</title>
+    ${document.querySelector("style").outerHTML}</head><body>${elemento.innerHTML}</body></html>`);
+  pagina.close();
+  quadro.contentWindow.focus();
+  quadro.contentWindow.print();
+  setTimeout(() => quadro.remove(), 1000);
 }
 
 function saida(id, tipo) {
