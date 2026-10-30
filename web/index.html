@@ -35,6 +35,19 @@
   .multiplos { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; }
   .quadro { border:1px solid var(--linha); border-radius:8px; padding:8px 10px; font-size:13px; }
   .quadro.imediata { border-left:3px solid var(--alto); }
+  :root { --mar:#1f5fbf; --praia:#e8833a; }
+  .nivel-clima { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:600; color:#fff; }
+  .nivel-clima.normal { background:var(--baixo); } .nivel-clima.atencao { background:var(--medio); }
+  .nivel-clima.alerta { background:var(--alto); }
+  .resumo-clima { font-size:18px; font-weight:600; margin:10px 0; }
+  .lista-dias { border-top:1px solid var(--linha); margin:8px 0; }
+  .linha-dia { display:grid; grid-template-columns:minmax(150px, 1.4fr) 70px 40px 90px minmax(0, 2fr); gap:8px;
+               align-items:center; padding:6px 4px; border-bottom:1px solid var(--linha); font-size:14px; }
+  .linha-dia.atencao { background:#fff8ec; } .linha-dia.alerta { background:#fdecea; }
+  .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:12px 0; }
+  .tile { border:1px solid var(--linha); border-radius:10px; padding:8px 10px; font-size:13px; }
+  .tile small { display:block; color:var(--suave); } .tile b { display:block; font-size:22px; }
+  @media (max-width:760px) { .linha-dia { grid-template-columns:1fr 60px 34px 70px; } .linha-dia > :last-child { grid-column:1 / -1; } }
   button.acao.secundaria { background:var(--cartao); color:var(--azul); border:1px solid var(--azul); }
   .rolagem { overflow-x:auto; }
   .tempo { list-style:none; padding:0; margin:8px 0; border-left:2px solid var(--linha); }
@@ -130,6 +143,7 @@
         <span class="suave">alunos com chamada de atenção</span></p>
         <div id="caixa"></div></aside>
       <div>
+        <div class="cartao" id="painel-clima"><p class="suave">Buscando a previsão de mar e chuva…</p></div>
         <div id="kpis" class="kpis"></div>
         <div class="cartao"><p><strong>Fila de pendências</strong> <span class="suave">· por prioridade</span></p>
           <div id="fila"></div></div>
@@ -146,6 +160,7 @@ const $ = (id) => document.getElementById(id);
 let alunos = [];
 let medias = null;
 let registros = [];
+let climaAtual = null; // a última previsão carregada, reaproveitada no aviso da semana
 let chavesDoAluno = []; // o banco de chaves do aluno aberto no mapa // os relatos que a coordenação já carregou: alimentam a fila e a caixa de casos
 let passe = null; // passe da coordenação: só na memória da página; fechou a aba, acabou.
 let passeProfessor = null; // o do professor, separado: cada papel abre só a sua parte.
@@ -343,6 +358,7 @@ async function entrarCoordenacao() {
       <a href="#" onclick="sairCoordenacao(); return false" class="suave" style="margin-left:8px">sair</a>`;
     $("painel-coord").hidden = false;
     carregarFila();
+    carregarClima();
   } catch (e) { $("erro-coord").textContent = e.message; }
 }
 
@@ -378,6 +394,127 @@ async function carregarFila() {
   registros = todos;
   mostrarCaixa();
   $("painel-chaves").innerHTML = painelDaEscola(await api("/v1/indicadores/chaves"));
+}
+
+async function carregarClima(atualizar = false) {
+  // Mar e chuva da semana: a regra do swell de sul com chuva forte acende o alerta até 2 dias antes.
+  try {
+    const c = await api(`/v1/clima${atualizar ? "?atualizar=true" : ""}`);
+    $("painel-clima").innerHTML = painelDoClima(c);
+  } catch (e) {
+    $("painel-clima").innerHTML = `<p class="suave">${e.message}</p>`;
+  }
+}
+
+function painelDoClima(c) {
+  // No jeito do app de clima do celular: uma frase no topo, a lista dos dias, o mar de hoje e as fontes embaixo.
+  // O nível vem só dos avisos do INMET.
+  climaAtual = c;
+  const avisos = c.avisos.length ? `<p style="margin-top:12px"><strong>Avisos do INMET</strong></p>${c.avisos.map((a) =>
+    `<p class="suave" style="margin:4px 0">${a.descricao} · <strong>${a.severidade}</strong> · ${dataBR(a.inicio)} ${a.inicio.slice(11, 16)}
+      a ${dataBR(a.fim)} ${a.fim.slice(11, 16)}<br>${a.riscos[0] || ""}</p>`).join("")}` : "";
+  return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+      <p style="margin:0"><strong>Mar e chuva</strong> <span class="suave">· Florianópolis</span>
+        ${c.nivel !== "normal" ? `<span class="nivel-clima ${c.nivel}">${NIVEL_CLIMA[c.nivel]}</span>` : ""}</p>
+      <a class="suave" href="#" onclick="carregarClima(true); return false">atualizar</a></div>
+    <p class="resumo-clima">${c.resumo}</p>
+    ${listaDeDias(c.dias)}
+    ${marDeHoje(c.dias[0])}
+    ${graficoOndas(c.horas)}
+    ${avisos}
+    <p class="nota">Fontes: ${c.fontes.join(" · ")} · Atual. ${dataBR(c.atualizado_em)} ${c.atualizado_em.slice(11, 16)}</p>
+    <button class="acao" onclick="gerarAvisoDaSemana()">Aviso da semana</button>
+    <div id="aviso-semana"></div>`;
+}
+
+const NIVEL_CLIMA = { normal: "normal", atencao: "atenção", alerta: "alerta" };
+const umaCasa = (v, casas = 1) => (v == null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }));
+
+function listaDeDias(dias) {
+  // Uma linha por dia: Hoje, Amanhã, sábado…; chance de chuva, o tempo, máxima e mínima, e o aviso, se houver.
+  return `<div class="lista-dias">${dias.map((d) => `<div class="linha-dia ${d.nivel}"
+      title="${d.chuva_mm == null ? "" : `${umaCasa(d.chuva_mm, 0)} mm de chuva`}">
+      <span><strong>${d.rotulo}</strong> <span class="suave">${d.data.slice(8, 10)}/${d.data.slice(5, 7)}</span></span>
+      <span class="suave">${GOTA} ${d.chuva_prob ?? "—"}%</span>
+      <span>${icone(d.tempo)}</span>
+      <span><strong>${Math.round(d.temp_max)}°</strong> <span class="suave">${Math.round(d.temp_min)}°</span></span>
+      <span>${d.avisos.length ? `<span class="nivel-clima ${d.nivel}">${NIVEL_CLIMA[d.nivel]} · ${
+        d.avisos.map((a) => a.descricao.toLowerCase()).join(", ")}</span>` : ""}</span></div>`).join("")}</div>`;
+}
+
+function marDeHoje(d) {
+  return `<div class="tiles">
+    <div class="tile"><small>Onda na praia hoje</small><b>${umaCasa(d.onda_praia)} m</b><span class="suave">Campeche</span></div>
+    <div class="tile"><small>Swell no mar aberto</small><b>${umaCasa(d.swell_altura)} m</b>
+      <span class="suave">de ${d.swell_rumo}, ${umaCasa(d.swell_periodo, 0)} s</span></div>
+    <div class="tile"><small>Maré máxima hoje</small><b>${umaCasa(d.mare_max, 2)} m</b><span class="suave">nível do mar</span></div></div>`;
+}
+
+const GOTA = `<svg width="9" height="12" viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6.5 0 8.5a5 4.5 0 0 0 10 0C10 6.5 5 0 5 0z" fill="#5f6368"/></svg>`;
+
+function icone(tipo) {
+  // Ícones desenhados aqui mesmo, sem biblioteca: sol, nuvem, chuva, tempestade, neblina.
+  const nuvem = (x = 0, cor = "#b0b7c3") => `<path transform="translate(${x} 0)" d="M9 24h15a5 5 0 0 0 .6-9.97A7 7 0 0 0 11.2 12.6 5.7 5.7 0 0 0 9 24z" fill="${cor}"/>`;
+  const sol = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#f4b400"/>`;
+  const desenho = {
+    sol: sol(16, 16, 8),
+    parcial: sol(20, 11, 6) + nuvem(-2),
+    nublado: nuvem(),
+    neblina: [12, 17, 22].map((y) => `<line x1="6" x2="26" y1="${y}" y2="${y}" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round"/>`).join(""),
+    chuva: nuvem(0, "#9aa0a6") + [10, 16, 22].map((x) => `<line x1="${x}" x2="${x - 2}" y1="26" y2="31" stroke="#1f5fbf" stroke-width="2" stroke-linecap="round"/>`).join(""),
+    tempestade: nuvem(0, "#9aa0a6") + `<path d="M17 23l-4 6h3l-2 5 6-7h-3l2-4z" fill="#f4b400"/>`,
+  }[tipo];
+  return `<svg width="30" height="30" viewBox="0 0 32 34" role="img" aria-label="${tipo}"><title>${tipo}</title>${desenho}</svg>`;
+}
+
+function graficoOndas(h) {
+  // Duas séries no mesmo eixo e da mesma medida (altura da onda, m): no mar aberto e na praia.
+  const L = 640, A = 200, m = 40, base = 165, topo = 14;
+  const maior = Math.max(1, ...h.onda_mar_aberto.filter((v) => v != null), ...h.onda_praia.filter((v) => v != null));
+  const teto = Math.ceil(maior);
+  const x = (i) => m + (i / (h.tempo.length - 1)) * (L - m - 70), y = (v) => base - (v / teto) * (base - topo);
+  const linha = (serie, cor) => `<polyline fill="none" stroke="${cor}" stroke-width="2"
+    points="${serie.map((v, i) => (v == null ? "" : `${x(i)},${y(v)}`)).join(" ")}"/>`;
+  let svg = "";
+  for (let v = 0; v <= teto; v += teto > 3 ? 1 : 0.5) {
+    svg += `<line x1="${m}" x2="${L - 70}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>
+      <text x="${m - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5f6368">${v.toLocaleString("pt-BR")} m</text>`;
+  }
+  h.tempo.forEach((t, i) => {
+    if (t.endsWith("T00:00")) {
+      svg += `<line x1="${x(i)}" x2="${x(i)}" y1="${topo}" y2="${base}" stroke="#f1f1f1"/>
+        <text x="${x(i) + 3}" y="${base + 16}" font-size="11" fill="#5f6368">${t.slice(8, 10)}/${t.slice(5, 7)}</text>`;
+    }
+  });
+  svg += linha(h.onda_mar_aberto, "var(--mar)") + linha(h.onda_praia, "var(--praia)");
+  const ultimo = (s) => [...s].reverse().find((v) => v != null);
+  svg += `<text x="${L - 66}" y="${y(ultimo(h.onda_mar_aberto)) + 4}" font-size="11" fill="#1f2328">mar aberto</text>
+    <text x="${L - 66}" y="${y(ultimo(h.onda_praia)) + 4}" font-size="11" fill="#1f2328">praia</text>`;
+  // Faixas invisíveis de 3 em 3 horas: passar o mouse mostra os dois valores daquela hora.
+  for (let i = 0; i < h.tempo.length; i += 3) {
+    svg += `<rect x="${x(i) - 4}" y="${topo}" width="${x(3) - x(0)}" height="${base - topo}" fill="transparent">
+      <title>${h.tempo[i].slice(8, 10)}/${h.tempo[i].slice(5, 7)} ${h.tempo[i].slice(11, 16)} · mar aberto ${(h.onda_mar_aberto[i] ?? 0).toLocaleString("pt-BR")} m · praia ${(h.onda_praia[i] ?? 0).toLocaleString("pt-BR")} m</title></rect>`;
+  }
+  return `<p><strong>Altura das ondas</strong> <span class="suave">· mar aberto × praia (Campeche), hora a hora</span></p>
+    <svg viewBox="0 0 ${L} ${A}" width="100%" role="img" aria-label="Altura da onda no mar aberto e na praia, próximos dias">${svg}</svg>
+    <div class="legenda"><span><i style="background:var(--mar)"></i>onda no mar aberto</span>
+      <span><i style="background:var(--praia)"></i>onda na praia</span><span>· Fonte: Open-Meteo</span></div>`;
+}
+
+async function gerarAvisoDaSemana() {
+  // O mesmo quadro dos dias, para imprimir; o e-mail leva a versão em texto curto.
+  try {
+    const a = await api("/v1/clima/aviso");
+    const mailto = `mailto:?subject=${encodeURIComponent(a.assunto)}&body=${encodeURIComponent(a.texto)}`;
+    $("aviso-semana").innerHTML = `<div class="cartao">
+      <p><strong>Previsão da semana</strong> <span class="suave">· Florianópolis</span></p>
+      <p class="resumo-clima">${climaAtual.resumo}</p>
+      ${listaDeDias(climaAtual.dias)}
+      <p class="suave">Em emergência: Defesa Civil 199 · Bombeiros 193</p>
+      <p class="nota">Fonte: INMET (avisos) · Open-Meteo (chuva e temperatura)</p>
+      <div class="nao-imprime"><button class="acao" onclick="window.print()">Imprimir</button>
+      <a class="acao" style="display:inline-block;text-decoration:none" href="${mailto}">Enviar a professores e pais</a></div></div>`;
+  } catch (e) { $("erro-coord").textContent = e.message; }
 }
 
 function painelDaEscola(p) {
