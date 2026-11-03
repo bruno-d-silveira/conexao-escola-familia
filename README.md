@@ -4,6 +4,10 @@
 
 Sistema para a escola registrar o que o professor observa, priorizar os casos na coordenação e gerar o documento para a conversa com a família. Uma API FastAPI estima o risco de evasão de cada estudante com um modelo scikit-learn.
 
+## Vídeo de apresentação
+
+[Assistir no Google Drive](https://drive.google.com/file/d/1PWgE1xwXJHGyLmTtQW-avH6wfCy17rCx/view?usp=sharing)
+
 ## Contexto
 
 Não existe perfil de estudante em risco: existe comportamento observável, e quase sempre alguém percebe antes. O sistema transforma essa percepção em registro: o professor escreve, a coordenação vê o caso com dados e decide o encaminhamento.
