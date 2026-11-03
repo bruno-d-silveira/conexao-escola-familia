@@ -14,9 +14,9 @@ Não existe perfil de estudante em risco: existe comportamento observável, e qu
 
 Referências de estratégia e formação que inspiraram o fluxo (sem vínculo institucional):
 
-- [U.S. Secret Service – NTAC](https://www.secretservice.gov/protection/ntac): *Averting Targeted School Violence* (2021).
 - [MEC – Escola que Protege](https://www.gov.br/mec/pt-br/escola-que-protege) (SNAVE, Lei 14.643/2023).
 - [Polícia Militar de Santa Catarina](https://www.pm.sc.gov.br): Rede de Segurança Escolar.
+- [U.S. Secret Service – NTAC](https://www.secretservice.gov/protection/ntac): *Averting Targeted School Violence* (2021).
 
 ## Fluxo
 
