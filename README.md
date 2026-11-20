@@ -1,128 +1,132 @@
-﻿# Conexão Escola-Família
+# Conexão Escola-Família (School-Family Connection)
 
-![testes](https://github.com/bruno-d-silveira/conexao-escola-familia/actions/workflows/testes.yml/badge.svg)
+*Português: [README.pt-BR.md](README.pt-BR.md)*
 
-Sistema para a escola registrar o que o professor observa, priorizar os casos na coordenação e gerar o documento para a conversa com a família. Uma API FastAPI estima o risco de evasão de cada estudante com um modelo scikit-learn.
+![tests](https://github.com/bruno-d-silveira/conexao-escola-familia/actions/workflows/testes.yml/badge.svg)
 
-## Vídeo de apresentação
+A system for a school to record what teachers observe, prioritize cases in the coordination office, and generate the document for the conversation with the family. A FastAPI service estimates each student's dropout risk with a scikit-learn model.
 
-[Assistir no Google Drive](https://drive.google.com/file/d/1PWgE1xwXJHGyLmTtQW-avH6wfCy17rCx/view?usp=sharing)
+The code, the screens and the data are in Brazilian Portuguese. This page explains them in English.
 
-## Contexto
+## Presentation video
 
-Não existe perfil de estudante em risco: existe comportamento observável, e quase sempre alguém percebe antes. O sistema transforma essa percepção em registro: o professor escreve, a coordenação vê o caso com dados e decide o encaminhamento.
+[Watch on Google Drive](https://drive.google.com/file/d/1PWgE1xwXJHGyLmTtQW-avH6wfCy17rCx/view?usp=sharing) (in Portuguese)
 
-Referências de estratégia e formação que inspiraram o fluxo (sem vínculo institucional):
+## Context
 
-- [MEC – Escola que Protege](https://www.gov.br/mec/pt-br/escola-que-protege) (SNAVE, Lei 14.643/2023).
-- [Polícia Militar de Santa Catarina](https://www.pm.sc.gov.br): Rede de Segurança Escolar.
+There is no such thing as an at-risk student profile: there is observable behavior, and almost always someone notices it first. The system turns that perception into a record: the teacher writes, the coordination office sees the case with data and decides the next step.
+
+Strategy and training references that inspired the workflow (no institutional affiliation):
+
+- [Brazilian Ministry of Education – Escola que Protege](https://www.gov.br/mec/pt-br/escola-que-protege) (SNAVE, Law 14.643/2023).
+- [Santa Catarina Military Police](https://www.pm.sc.gov.br): School Safety Network.
 - [U.S. Secret Service – NTAC](https://www.secretservice.gov/protection/ntac): *Averting Targeted School Violence* (2021).
 
-## Fluxo
+## Workflow
 
-| Quem | Faz | Vê |
+| Who | Does | Sees |
 |---|---|---|
-| Professor (senha) | entra com a senha, escolhe turma e aluno, escreve o relatório e assina com o nome completo | ficha do aluno, aprovação e frequência por semestre |
-| Coordenação (senha) | abre a fila e a caixa de casos, marca cada chave como solucionada ou descarta, aprova, gera o documento | prioridade (perigo iminente primeiro), % de evasão, o que mais pesou, chaves dos relatos, chaves na escola sem nome, dispersão das médias, linha do tempo das chamadas, boletim do ano, histórico de acesso |
-| Família | recebe o convite para conversar | documento impresso ou e-mail, sem a lista de fatores |
+| Teacher (password) | logs in, picks the class and the student, writes the report and signs it with their full name | the student's record, pass rate and attendance per semester |
+| Coordination office (password) | opens the queue and the case box, marks each key as solved or discards it, approves, generates the document | priority (imminent danger first), dropout %, what weighed most, keys from the reports, keys across the school without names, spread of the grade averages, timeline of the calls, year report card, access history |
+| Family | receives the invitation to talk | printed document or e-mail, without the list of factors |
 
-## Modelo
+## Model
 
 | | |
 |---|---|
-| Base | [UCI 697 – Predict Students' Dropout and Academic Success](https://archive.ics.uci.edu/dataset/697) (4.424 estudantes, CC BY 4.0) |
-| Alvo | 1 = evadiu; 0 = matriculado ou formado |
-| Divisão | 60/20/20 estratificada (2654 / 885 / 885), semente 42 |
-| Candidatos | Regressão logística × HistGradientBoosting, ambos com `class_weight="balanced"` |
-| Escolhido | Regressão logística (diferença de ROC-AUC < 0,02; pesos explicáveis) |
-| Teste | acurácia 0,872 · F1 (evasão) 0,804 · ROC-AUC 0,924 |
-| Médias 1º × 2º semestre | r de Pearson = 0,837 |
+| Dataset | [UCI 697 – Predict Students' Dropout and Academic Success](https://archive.ics.uci.edu/dataset/697) (4,424 students, CC BY 4.0) |
+| Target | 1 = dropped out; 0 = enrolled or graduated |
+| Split | 60/20/20 stratified (2654 / 885 / 885), seed 42 |
+| Candidates | Logistic regression × HistGradientBoosting, both with `class_weight="balanced"` |
+| Chosen | Logistic regression (ROC-AUC difference < 0.02; explainable weights) |
+| Test | accuracy 0.872 · F1 (dropout) 0.804 · ROC-AUC 0.924 |
+| 1st × 2nd semester averages | Pearson r = 0.837 |
 
-Colunas fora por governança: gênero, nacionalidade, estado civil, necessidades especiais, profissão e escolaridade dos pais, indicadores macroeconômicos.
+Columns left out for governance: gender, nationality, marital status, special needs, parents' occupation and education, macroeconomic indicators.
 
-Treino offline: `python treinar.py` → `models/modelo_evasao.joblib` e `models/metricas.json`.
+Offline training: `python treinar.py` → `models/modelo_evasao.joblib` and `models/metricas.json`.
 
-### Limitações
+### Limitations
 
-- A base é de ensino superior em Portugal, não de educação básica no Brasil. As notas vão de 0 a 20; a tela converte para 0 a 10.
-- Média 0 na base significa sem nota registrada no semestre, não nota zero.
-- Frequência e situação da matrícula não existem na base: na demonstração são inventadas (`"fonte": "demo"`); numa escola, vêm do diário de classe e da secretaria.
-- Os alunos da demonstração são linhas anônimas da base, filtradas para 17 a 20 anos (os mais velhos são outliers para o público do projeto). O modelo é treinado com a base inteira.
-- O boletim mensal por disciplina também é de demonstração: a base só tem médias por semestre, então `gerar_boletins_ficticios.py` deriva as notas e as faltas de cada mês em volta da média, da proporção de aprovadas e da frequência de cada aluno (`"fonte": "demo"`). O ano letivo de 2026 aparece em andamento, atualizado em 29/10/2026.
-- O relatório do professor não entra no cálculo. O risco mostra associação, não causa.
+- The dataset comes from higher education in Portugal, not from basic education in Brazil. Grades go from 0 to 20; the screen converts them to 0 to 10.
+- An average of 0 in the dataset means no grade recorded in the semester, not a grade of zero.
+- Attendance and enrollment status do not exist in the dataset: in the demo they are made up (`"fonte": "demo"`); in a school, they come from the class diary and the school office.
+- The demo students are anonymous rows from the dataset, filtered to ages 17 to 20 (older students are outliers for the project's audience). The model is trained on the full dataset.
+- The monthly report card per subject is also a demo: the dataset only has semester averages, so `gerar_boletins_ficticios.py` derives each month's grades and absences around each student's average, share of passed subjects and attendance (`"fonte": "demo"`). The 2026 school year appears in progress, updated on 29/10/2026.
+- The teacher's report does not enter the calculation. Risk shows association, not cause.
 
-## Motor de chaves
+## Key engine
 
-O relato do professor é livre ("saiu batendo cadeiras", "falou em discurso de ódio"). Quando ele chega, o motor (`app/chaves.py`) lê o texto e devolve só o tema da situação, junto com a frase que o disparou. São regras escritas à mão, sem IA, que qualquer pessoa pode ler.
+The teacher's report is free text ("saiu batendo cadeiras", *left banging chairs*; "falou em discurso de ódio", *talked about hate speech*). When it arrives, the engine (`app/chaves.py`) reads the text and returns only the theme of the situation, together with the sentence that triggered it. These are hand-written rules, with no AI, that anyone can read.
 
-| Gravidade | Chaves |
+| Severity | Keys |
 |---|---|
-| perigo iminente: o caso vai para o topo da fila | ameaça, arma, fala em se machucar |
-| atenção | conflito físico, discurso de ódio, discurso sombrio, bullying, isolamento, faltas, substâncias, companhias |
+| imminent danger: the case goes to the top of the queue | threat, weapon, talks about self-harm |
+| attention | physical conflict, hate speech, dark speech, bullying, isolation, absences, substances, peer company |
 
-- A chave descreve a situação, nunca a pessoa. Dar nome a comportamento é do profissional de saúde mental, que decide e assina.
-- Cada chave fica num banco de chaves, separado do relato, e a coordenação marca como solucionada, reabre ou descarta quando o motor errou. Cada mudança vai para a trilha.
-- O motor não entende negação: "não bateu em ninguém" ainda dispara "conflito físico". Por isso existe o descarte.
-- A vista da escola mostra quantas vezes cada chave apareceu em cada mês, sem nome de aluno e sem relato.
-- O modelo de evasão não lê o relato nem as chaves.
+- The key describes the situation, never the person. Naming a behavior belongs to the mental health professional, who decides and signs.
+- Each key is stored in a key database, separate from the report, and the coordination office marks it as solved, reopens it, or discards it when the engine was wrong. Every change goes to the audit trail.
+- The engine does not understand negation: "não bateu em ninguém" (*didn't hit anyone*) still triggers "physical conflict". That is why discarding exists.
+- The school view shows how many times each key appeared in each month, with no student name and no report.
+- The dropout model does not read the report or the keys.
 
-## Mar e chuva: avisos para as escolas
+## Sea and rain: warnings for schools
 
-Em Florianópolis, swell de sul com período e energia altos enche a maré nos mangues; com chuva forte, alaga e trava a mobilidade da cidade. A coordenação vê a previsão dos próximos 7 dias no jeito do app de clima do celular (uma frase no topo, a lista dos dias com chance de chuva, o tempo, máxima e mínima, e o aviso do dia), o mar de hoje e a altura das ondas no mar aberto e na praia. O aviso da semana sai no mesmo formato para imprimir, e em texto curto para o e-mail.
+In Florianópolis, a south swell with high period and energy fills the tide in the mangroves; with heavy rain, it floods and locks up mobility in the city. The coordination office sees the forecast for the next 7 days in the style of a phone weather app (one sentence at the top, the list of days with chance of rain, the weather, high and low, and the day's warning), today's sea, and wave height offshore and at the beach. The week's warning comes out in the same format for printing, and as short text for e-mail.
 
-| Fonte (pública, sem chave) | O que traz |
+| Source (public, no key) | What it provides |
 |---|---|
-| [Open-Meteo Marine](https://open-meteo.com/en/docs/marine-weather-api) | onda no mar aberto e na praia (Campeche), swell (altura, direção, período), nível do mar |
-| [Open-Meteo Forecast](https://open-meteo.com/en/docs) | chuva, temperatura e o tempo de cada dia |
-| [INMET](https://portal.inmet.gov.br) | avisos meteorológicos ativos para Florianópolis (IBGE 4205407) |
+| [Open-Meteo Marine](https://open-meteo.com/en/docs/marine-weather-api) | waves offshore and at the beach (Campeche), swell (height, direction, period), sea level |
+| [Open-Meteo Forecast](https://open-meteo.com/en/docs) | rain, temperature and the weather for each day |
+| [INMET](https://portal.inmet.gov.br) | active weather warnings for Florianópolis (IBGE 4205407) |
 
-| Aviso do INMET | Nível no painel |
+| INMET warning | Dashboard level |
 |---|---|
-| Perigo Potencial | atenção |
-| Perigo, Grande Perigo | alerta |
+| Perigo Potencial (*potential danger*) | attention |
+| Perigo, Grande Perigo (*danger, great danger*) | alert |
 
-- O nível vem só dos avisos oficiais, de hoje até daqui a 2 dias. A regra do swell de sul ainda precisa de ajuste fino (não é qualquer ondulação de sul que pede chamada); até lá, os dados do mar aparecem, mas não acendem alerta.
-- A previsão fica guardada por 3 horas; o botão "atualizar" busca de novo.
-- É a única parte do sistema que depende da internet. Se uma fonte cair, a rota responde 503 e o resto continua funcionando. Os testes usam dados montados, sem rede.
+- The level comes only from official warnings, from today to 2 days ahead. The south swell rule still needs fine-tuning (not every south swell calls for action); until then, sea data is shown but does not trigger an alert.
+- The forecast is cached for 3 hours; the "atualizar" (*refresh*) button fetches it again.
+- This is the only part of the system that depends on the internet. If a source goes down, the route responds 503 and everything else keeps working. Tests use mocked data, with no network.
 
-## Proteção de dados
+## Data protection
 
-- Senhas de professor e coordenação guardadas só como hash PBKDF2-SHA256 com sal (`hashlib`, sem dependência extra).
-- O professor não recebe a previsão; ela fica com a coordenação.
-- Professor e coordenação entram com login e recebem um passe temporário (2 h, só em memória) que carrega o papel de quem entrou; sem passe, as rotas respondem 401, e passe de professor nas rotas da coordenação responde 403.
-- O cadastro dos alunos só abre com login. O professor vê e envia relato só dos alunos das turmas dele; a coordenação vê a escola toda.
-- O relato só sai assinado: o nome completo digitado precisa conferir com o professor que entrou (sem diferenciar maiúscula, espaço ou título); se não conferir, nada é gravado.
-- Trilha de auditoria (LGPD, art. 37): fica gravado, com quem e quando, cada envio, cada aluno que aparece na fila, cada abertura de ficha, de histórico e de boletim, cada aprovação, cada documento gerado e cada vez que a coordenação imprime o documento ou abre o e-mail para o responsável. O "quem" vem sempre do login.
-- A trilha só aceita inclusão: gatilhos no SQLite barram alterar ou apagar uma linha, mesmo fora da API.
-- O modelo recebe só números acadêmicos, nunca nome ou texto.
-- Todos os nomes, e-mails e senhas são fictícios. O banco `data/escola.db` não vai para o repositório.
+- Teacher and coordination passwords are stored only as salted PBKDF2-SHA256 hashes (`hashlib`, no extra dependency).
+- The teacher does not receive the prediction; it stays with the coordination office.
+- Teachers and coordination log in and receive a temporary pass (2 h, in memory only) that carries the role of whoever logged in; without a pass, routes respond 401, and a teacher pass on coordination routes responds 403.
+- The student registry only opens after login. A teacher sees and reports only on students in their own classes; the coordination office sees the whole school.
+- A report is only saved when signed: the full name typed must match the logged-in teacher (ignoring case, spacing or title); if it does not match, nothing is saved.
+- Audit trail (LGPD, Brazil's data protection law, art. 37): it records, with who and when, every submission, every student who appears in the queue, every opening of a record, history and report card, every approval, every document generated, and every time the coordination office prints the document or opens the e-mail to the guardian. The "who" always comes from the login.
+- The trail is append-only: SQLite triggers block updating or deleting a row, even outside the API.
+- The model receives only academic numbers, never a name or text.
+- All names, e-mails and passwords are fictitious. The database `data/escola.db` is not committed to the repository.
 
-## Estrutura
+## Structure
 
 ```
 app/
-  main.py               lifespan: modelo, banco, indicadores e passes, carregados uma vez
-  services.py           inferência e fatores (peso × valor da regressão logística)
-  schemas.py            contratos Pydantic com Field (faixas → 422)
-  regras.py             limitações, níveis e perguntas, escritos à mão
-  chaves.py             motor de chaves: o tema da situação em cada relato, escrito à mão
-  clima.py              mar e chuva: busca nas fontes públicas e o nível pelos avisos do INMET
-  escola.py             SQLite: alunos, boletins, professores e suas turmas, coordenação, registros, chaves, acessos
-  seguranca.py          hash de senha PBKDF2
-  sessoes.py            passes temporários do professor e da coordenação
-  indicadores.py        médias por semestre e r de Pearson
+  main.py               lifespan: model, database, indicators and passes, loaded once
+  services.py           inference and factors (weight × value of the logistic regression)
+  schemas.py            Pydantic contracts with Field (ranges → 422)
+  regras.py             limitations, levels and questions, hand-written
+  chaves.py             key engine: the theme of the situation in each report, hand-written
+  clima.py              sea and rain: fetches the public sources and sets the level from INMET warnings
+  escola.py             SQLite: students, report cards, teachers and their classes, coordination, reports, keys, access
+  seguranca.py          PBKDF2 password hashing
+  sessoes.py            temporary passes for teachers and coordination
+  indicadores.py        semester averages and Pearson r
   routers/
-    predicao.py         /health e /v1/predict
-    escola.py           professor, coordenação, registros, documento, acessos
+    predicao.py         /health and /v1/predict
+    escola.py           teacher, coordination, reports, document, access
     indicadores.py      /v1/indicadores/medias
-    clima.py            /v1/clima e o aviso da semana
-web/index.html          telas do professor e da coordenação (HTML, CSS e JS, sem dependências)
-tests/                  API, fluxo da escola, motor de chaves, mar e chuva, indicadores
-gerar_*_ficticios.py    dados de demonstração
-treinar.py              pipeline offline
+    clima.py            /v1/clima and the week's warning
+web/index.html          teacher and coordination screens (HTML, CSS and JS, no dependencies)
+tests/                  API, school workflow, key engine, sea and rain, indicators
+gerar_*_ficticios.py    demo data
+treinar.py              offline pipeline
 ```
 
-## Rodar
+## Run
 
 ```bash
 py -m venv .venv
@@ -131,53 +135,53 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-- Telas: http://127.0.0.1:8000
-- Documentação interativa: http://127.0.0.1:8000/docs
-- Senha de demonstração do professor: `escola2026`; da coordenação: `coord2026`.
+- Screens: http://127.0.0.1:8000
+- Interactive documentation: http://127.0.0.1:8000/docs
+- Demo teacher password: `escola2026`; coordination: `coord2026`.
 
 ## Endpoints
 
-| Método | Rota | Acesso | Resposta |
+| Method | Route | Access | Response |
 |---|---|---|---|
-| GET | `/health` | livre | status e se o modelo está carregado |
-| POST | `/v1/predict` | livre | risco, nível, fatores, limitações, perguntas |
-| GET | `/v1/professores`, `/v1/coordenacao` | livre | nomes para o login (sem hash) |
-| POST | `/v1/professores/login` | senha do professor | passe temporário do professor |
-| POST | `/v1/coordenacao/login` | senha da coordenação | passe temporário da coordenação |
-| GET | `/v1/alunos` | passe (professor ou coordenação) | cadastro dos alunos (o professor recebe só as turmas dele) |
-| POST | `/v1/registros` | passe do professor + nome completo | só a confirmação do envio |
-| GET | `/v1/registros`, `/v1/registros/{id}` | passe da coordenação | fila e ficha (as duas gravam o acesso) |
-| POST | `/v1/registros/{id}/aprovar` | passe da coordenação | registro aprovado |
-| GET | `/v1/registros/{id}/documento?modelo=` | passe da coordenação | convite para a família, só a formalidade (`convite`, ou `convite_boletim` com o boletim como anexo) |
-| POST | `/v1/registros/{id}/saida` | passe da coordenação | grava que o documento foi impresso ou que o e-mail foi aberto |
-| GET | `/v1/alunos/{id}/boletim` | passe da coordenação | boletim do ano: notas por mês em dois semestres (fevereiro a junho, agosto a dezembro), médias, faltas e situação (grava o acesso) |
-| GET | `/v1/alunos/{id}/chaves` | passe da coordenação | chaves do aluno com o trecho do relato e a situação (grava o acesso) |
-| POST | `/v1/chaves/{id}/situacao` | passe da coordenação | marca a chave como aberta, solucionada ou descartada (grava na trilha) |
-| GET | `/v1/indicadores/chaves` | passe da coordenação | ocorrências de cada chave por mês letivo, sem nome de aluno |
-| GET | `/v1/alunos/{id}/acessos` | passe da coordenação | histórico de acesso (ver o histórico também grava o acesso) |
-| GET | `/v1/indicadores/medias` | livre | pontos das médias e r de Pearson |
-| GET | `/v1/clima?atualizar=` | passe da coordenação | mar, maré, chuva, temperatura e avisos do INMET para 7 dias, com o nível do painel |
-| GET | `/v1/clima/aviso` | passe da coordenação | texto curto da semana para o e-mail a professores e pais |
+| GET | `/health` | open | status and whether the model is loaded |
+| POST | `/v1/predict` | open | risk, level, factors, limitations, questions |
+| GET | `/v1/professores`, `/v1/coordenacao` | open | names for login (no hash) |
+| POST | `/v1/professores/login` | teacher password | temporary teacher pass |
+| POST | `/v1/coordenacao/login` | coordination password | temporary coordination pass |
+| GET | `/v1/alunos` | pass (teacher or coordination) | student registry (a teacher gets only their own classes) |
+| POST | `/v1/registros` | teacher pass + full name | only the submission confirmation |
+| GET | `/v1/registros`, `/v1/registros/{id}` | coordination pass | queue and record (both log the access) |
+| POST | `/v1/registros/{id}/aprovar` | coordination pass | approved report |
+| GET | `/v1/registros/{id}/documento?modelo=` | coordination pass | invitation to the family, formalities only (`convite`, or `convite_boletim` with the report card attached) |
+| POST | `/v1/registros/{id}/saida` | coordination pass | records that the document was printed or the e-mail was opened |
+| GET | `/v1/alunos/{id}/boletim` | coordination pass | year report card: grades per month across two semesters (February to June, August to December), averages, absences and status (logs the access) |
+| GET | `/v1/alunos/{id}/chaves` | coordination pass | the student's keys with the report excerpt and status (logs the access) |
+| POST | `/v1/chaves/{id}/situacao` | coordination pass | marks the key as open, solved or discarded (goes to the trail) |
+| GET | `/v1/indicadores/chaves` | coordination pass | occurrences of each key per school month, with no student name |
+| GET | `/v1/alunos/{id}/acessos` | coordination pass | access history (viewing the history also logs the access) |
+| GET | `/v1/indicadores/medias` | open | average points and Pearson r |
+| GET | `/v1/clima?atualizar=` | coordination pass | sea, tide, rain, temperature and INMET warnings for 7 days, with the dashboard level |
+| GET | `/v1/clima/aviso` | coordination pass | short text of the week for the e-mail to teachers and parents |
 
-| Código | Quando |
+| Code | When |
 |---|---|
-| 200 / 201 | sucesso |
-| 400 | regra de negócio (aprovadas > inscritas, registro já aprovado, documento antes da aprovação) |
-| 401 | senha errada ou sem passe |
-| 403 | passe de outro papel, nome da assinatura que não confere, ou aluno fora das turmas do professor |
-| 404 | aluno ou registro inexistente |
-| 422 | tipo ou faixa inválidos (Pydantic) |
-| 500 | modelo não carregado ou falha não prevista |
-| 503 | previsão de mar e chuva indisponível (fonte pública fora do ar) |
+| 200 / 201 | success |
+| 400 | business rule (passed > enrolled, report already approved, document before approval) |
+| 401 | wrong password or no pass |
+| 403 | pass from another role, signature name that does not match, or student outside the teacher's classes |
+| 404 | student or report not found |
+| 422 | invalid type or range (Pydantic) |
+| 500 | model not loaded or unexpected failure |
+| 503 | sea and rain forecast unavailable (public source down) |
 
-## Testes
+## Tests
 
 ```bash
 python -m pytest -q
 ```
 
-O GitHub Actions roda os testes em cada PR e em cada push na `main` e na `develop`.
+GitHub Actions runs the tests on every PR and on every push to `main` and `develop`.
 
-## Fluxo de trabalho
+## Workflow
 
-GitFlow: `main` ← `develop` ← `feature/*`, branches mantidas após o merge.
+GitFlow: `main` ← `develop` ← `feature/*`, branches kept after merge.
