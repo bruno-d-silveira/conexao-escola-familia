@@ -6,9 +6,9 @@
 
 Sistema para a escola registrar o que o professor observa, priorizar os casos na coordenação e gerar o documento para a conversa com a família. Uma API FastAPI estima o risco de evasão de cada estudante com um modelo scikit-learn.
 
-## Vídeo de apresentação
+## Demonstração
 
-[Assistir no Google Drive](https://drive.google.com/file/d/1PWgE1xwXJHGyLmTtQW-avH6wfCy17rCx/view?usp=sharing)
+![O professor envia o relato; a coordenação abre o caso, aprova e gera o convite para a família](docs/demo.gif)
 
 ## Contexto
 

@@ -8,9 +8,9 @@ A system for a school to record what teachers observe, prioritize cases in the c
 
 The code, the screens and the data are in Brazilian Portuguese. This page explains them in English.
 
-## Presentation video
+## Demo
 
-[Watch on Google Drive](https://drive.google.com/file/d/1PWgE1xwXJHGyLmTtQW-avH6wfCy17rCx/view?usp=sharing) (in Portuguese)
+![The teacher sends the report; the coordination office opens the case, approves it and generates the invitation to the family](docs/demo.gif)
 
 ## Context
 
